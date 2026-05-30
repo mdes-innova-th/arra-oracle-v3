@@ -686,7 +686,7 @@ export function persistLearningDoc(opts: {
 }): { file: string; id: string } {
   const { pattern, subdir, filename, id } = opts;
   const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const dir = path.join(REPO_ROOT, subdir);
   fs.mkdirSync(dir, { recursive: true });
@@ -731,7 +731,7 @@ export function persistLearningDoc(opts: {
     indexedAt: now.getTime(),
     origin: opts.origin || null,
     project: opts.project || null,
-    createdBy: opts.createdBy || 'muninn_learn',
+    createdBy: opts.createdBy || 'oracle_learn',
   }).run();
 
   // FTS5 has no unique constraint on id — delete-then-insert to be idempotent.
@@ -755,7 +755,8 @@ export function handleLearn(
   cwd?: string
 ) {
   const resolvedProject = (project ?? detectProject(cwd))?.toLowerCase() ?? null;
-  const dateStr = new Date().toISOString().split('T')[0];
+  const d = new Date();
+  const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
   const slug = pattern
     .substring(0, 50)
@@ -765,16 +766,28 @@ export function handleLearn(
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
 
+  // On slug collision (same date + same first-50-char prefix), append -2, -3, …
+  // until unique. Prevents 500s when two writes share a slug within one day
+  // (e.g. repeated hot-write snapshots from the same agent).
+  const subdir = 'ψ/memory/learnings';
+  const learningsDir = path.join(REPO_ROOT, subdir);
+  let uniqueSlug = slug;
+  let suffix = 2;
+  while (fs.existsSync(path.join(learningsDir, `${dateStr}_${uniqueSlug}.md`))) {
+    uniqueSlug = `${slug}-${suffix}`;
+    suffix++;
+  }
+
   const { file, id } = persistLearningDoc({
     pattern,
-    subdir: 'ψ/memory/learnings',
-    filename: `${dateStr}_${slug}.md`,
-    id: `learning_${dateStr}_${slug}`,
+    subdir,
+    filename: `${dateStr}_${uniqueSlug}.md`,
+    id: `learning_${dateStr}_${uniqueSlug}`,
     concepts,
     source,
     origin,
     project: resolvedProject,
-    createdBy: 'muninn_learn',
+    createdBy: 'oracle_learn',
   });
 
   return { success: true, file, id };
@@ -783,7 +796,7 @@ export function handleLearn(
 /**
  * Persist a session summary as a learning with concepts
  * ["session-summary", "session-<id>", "oracle-<name>"].
- * Written to ψ/memory/session-summaries/<session-id>.md so `muninn_search` surfaces it.
+ * Written to ψ/memory/session-summaries/<session-id>.md so `oracle_search` surfaces it.
  */
 export function handleSessionSummary(
   sessionId: string,

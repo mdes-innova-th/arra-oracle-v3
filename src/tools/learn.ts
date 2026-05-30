@@ -39,7 +39,7 @@ export function coerceConcepts(concepts: unknown): string[] {
 }
 
 export const learnToolDef = {
-  name: 'muninn_learn',
+  name: 'oracle_learn',
   description: 'Add a new pattern or learning to the Oracle knowledge base. Creates a markdown file in ψ/memory/learnings/ and indexes it.',
   inputSchema: {
     type: 'object',
@@ -99,7 +99,7 @@ export function normalizeProject(input?: string): string | null {
 
 /**
  * Extract project from source field (fallback).
- * Handles "muninn_learn from github.com/owner/repo" and "rrr: org/repo" formats.
+ * Handles "oracle_learn from github.com/owner/repo" and "rrr: org/repo" formats.
  */
 export function extractProjectFromSource(source?: string): string | null {
   if (!source) return null;
@@ -121,9 +121,44 @@ export function extractProjectFromSource(source?: string): string | null {
 // ============================================================================
 
 export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Promise<ToolResponse> {
+  // Null-guard: MCP clients sometimes call with no args. Show usage instead of crashing.
+  if (input == null || typeof input !== 'object') {
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          success: false,
+          error: "arra_learn requires field 'pattern' (non-empty string).",
+          usage: "arra_learn({ pattern: 'your learning or pattern...', concepts?: ['tag1','tag2'], project?: 'github.com/owner/repo', source?: 'optional source' })",
+          tip: "Search for similar topics first with arra_search, and use arra_supersede if updating older info."
+        }, null, 2)
+      }],
+      isError: true
+    };
+  }
+
   const { pattern, source, concepts, project: projectInput } = input;
+
+  // Validate pattern: must be a non-empty string before any string ops or filename derivation.
+  // (Cast through `unknown` so the runtime check survives even when callers pass undefined despite TS typing.)
+  if (typeof (pattern as unknown) !== 'string' || (pattern as string).trim().length === 0) {
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          success: false,
+          error: "arra_learn requires field 'pattern' (non-empty string).",
+          received: pattern === undefined ? 'undefined' : typeof pattern,
+          usage: "arra_learn({ pattern: 'your learning or pattern...', concepts?: ['tag1','tag2'] })",
+          tip: "Empty pattern would produce a corrupt filename; reject upfront."
+        }, null, 2)
+      }],
+      isError: true
+    };
+  }
+
   const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const slug = pattern
     .substring(0, 50)
@@ -200,7 +235,7 @@ export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Pr
     indexedAt: now.getTime(),
     origin: null,
     project,
-    createdBy: 'muninn_learn',
+    createdBy: 'oracle_learn',
   }).run();
 
   // FTS5 has no unique constraint on id — delete-then-insert to be idempotent.
@@ -212,7 +247,7 @@ export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Pr
 
   // Vector indexing — two paths:
   //   - Default (env unset): inline embed via Ollama. Keeps DB + lancedb in
-  //     step so muninn_search hybrid mode works immediately. Graceful fallback
+  //     step so oracle_search hybrid mode works immediately. Graceful fallback
   //     on embedder failure — FTS row above is still searchable.
   //   - ORACLE_INDEXER_ENQUEUE=1 (M5 of indexer-CLI): queue a row in
   //     indexing_jobs for the daemon to embed asynchronously. FTS-first /
@@ -227,7 +262,7 @@ export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Pr
     } catch (err) {
       // Never block ingest on the queue — same posture as the inline path.
       embeddingStatus = 'failed';
-      console.warn(`[muninn_learn] enqueue failed: ${err instanceof Error ? err.message : String(err)}`);
+      console.warn(`[oracle_learn] enqueue failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   } else {
     try {
@@ -246,8 +281,8 @@ export async function handleLearn(ctx: ToolContext, input: OracleLearnInput): Pr
       embeddingStatus = 'ok';
     } catch (err) {
       embeddingStatus = 'failed';
-      console.warn(`[muninn_learn] vector embedding failed for ${id}: ${err instanceof Error ? err.message : String(err)}`);
-      console.warn(`[muninn_learn] document still searchable via FTS5; run 'bun src/scripts/index-model.ts <model>' later to backfill vectors`);
+      console.warn(`[oracle_learn] vector embedding failed for ${id}: ${err instanceof Error ? err.message : String(err)}`);
+      console.warn(`[oracle_learn] document still searchable via FTS5; run 'bun src/scripts/index-model.ts <model>' later to backfill vectors`);
     }
   }
 

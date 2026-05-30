@@ -23,8 +23,8 @@ import type { OracleDocument, IndexerConfig } from '../types.ts';
 
 import { setIndexingStatus } from './status.ts';
 import { backupDatabase } from './backup.ts';
-import { parseResonanceFile, parseLearningFile, parseRetroFile } from './parser.ts';
-import { collectDocuments } from './collectors.ts';
+import { parseResonanceFile, parseLearningFile, parseRetroFile, parseDistillationFile } from './parser.ts';
+import { collectDocuments, collectSecurityCorpus } from './collectors.ts';
 import { storeDocuments } from './storage.ts';
 
 export class OracleIndexer {
@@ -75,6 +75,8 @@ export class OracleIndexer {
       ...collectDocuments({ ...shared, subdir: 'resonance', parseFn: parseResonanceFile, label: 'resonance' }),
       ...collectDocuments({ ...shared, subdir: 'learnings', parseFn: parseLearningFile, label: 'learning' }),
       ...collectDocuments({ ...shared, subdir: 'retrospectives', parseFn: parseRetroFile, label: 'retrospective' }),
+      ...collectDocuments({ ...shared, subdir: 'distillations', parseFn: parseDistillationFile, label: 'distillation' }),
+      ...collectSecurityCorpus(shared),
     ];
 
     // Safety: if we found zero source documents but the DB has existing
@@ -113,7 +115,7 @@ export class OracleIndexer {
       );
     }
 
-    console.log(`Smart delete: ${idsToDelete.length} stale docs (preserving muninn_learn)`);
+    console.log(`Smart delete: ${idsToDelete.length} stale docs (preserving oracle_learn)`);
 
     if (idsToDelete.length > 0) {
       this.db.delete(oracleDocuments).where(inArray(oracleDocuments.id, idsToDelete)).run();

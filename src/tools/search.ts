@@ -14,7 +14,7 @@ import type { SearchResult } from '../server/types.ts';
 import type { ToolContext, ToolResponse, OracleSearchInput } from './types.ts';
 
 export const searchToolDef = {
-  name: 'muninn_search',
+  name: 'oracle_search',
   description: 'Search Oracle knowledge base using hybrid search (FTS5 keywords + ChromaDB vectors). Finds relevant principles, patterns, learnings, or retrospectives. Falls back to FTS5-only if ChromaDB unavailable.',
   inputSchema: {
     type: 'object',
@@ -72,8 +72,12 @@ export const searchToolDef = {
  * Removes FTS5 special characters that cause syntax errors.
  */
 export function sanitizeFtsQuery(query: string): string {
+  // Strip FTS5 special chars + SQL-comment / statement-terminator chars that
+  // can leak as raw FTS5 parser errors (e.g. ';' or '--' in user input).
   let sanitized = query
-    .replace(/[?*+\-()^~"':.\/]/g, ' ')
+    .replace(/[?*+()^~"':.\/;,!=<>{}\[\]\\|&]/g, ' ')
+    .replace(/--+/g, ' ')   // collapse consecutive dashes (SQL comment)
+    .replace(/-+/g, ' ')    // and any remaining dashes (FTS5 prefix-NOT)
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -414,7 +418,7 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
 
   // Enrich with supersede flags (P-001 "Nothing is Deleted" — superseded docs
   // remain searchable; callers need to see the flag to decide whether to
-  // follow the replacement pointer). Fixes drift where muninn_supersede claimed
+  // follow the replacement pointer). Fixes drift where oracle_supersede claimed
   // "will appear in searches with a warning" but search never flagged them.
   if (results.length > 0) {
     const ids = results.map(r => r.id as string);
