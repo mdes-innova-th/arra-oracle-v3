@@ -16,7 +16,7 @@ export function createFederationPlugin(): ServerPlugin {
   return {
     name: 'federation',
     tier: 'standard',
-    enabled: false,
+    enabled: true,
     seedMenu: false,
     routes: () => peerRoutes,
     start: () => {

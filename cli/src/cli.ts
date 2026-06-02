@@ -24,6 +24,7 @@ import {
 import { menuResetAll } from "./commands/menu-reset.ts";
 import { reindex } from "./commands/reindex.ts";
 import { configCommand } from "./commands/config.ts";
+import { fedSearch } from "./commands/fed-search.ts";
 import { stripAtFlag } from "./lib/config.ts";
 
 const pkg = await Bun.file(join(import.meta.dir, "../package.json")).json();
@@ -38,6 +39,7 @@ function printHelp(commands: Array<{ command: string; help?: string }>) {
   console.log(`  ${"menu".padEnd(16)}inspect and customize studio menu (list, add, remove)`);
   console.log(`  ${"config".padEnd(16)}show and manage API target config`);
   console.log(`  ${"reindex".padEnd(16)}trigger SQLite/FTS reindex via ORACLE_API`);
+  console.log(`  ${"fed".padEnd(16)}federation — federated search across peers`);
   for (const { command, help } of commands) {
     console.log(`  ${command.padEnd(16)}${help ?? ""}`);
   }
@@ -161,6 +163,26 @@ async function main() {
 
   if (cmd === "reindex") {
     process.exit(await reindex(args.slice(1)));
+  }
+
+  if (cmd === "fed") {
+    const sub = args[1]?.toLowerCase();
+    const rest = args.slice(2);
+    if (sub === "search") {
+      process.exit(await fedSearch(rest));
+    }
+    if (!sub || sub === "--help" || sub === "-h") {
+      console.log("arra-cli fed <subcommand>\n");
+      console.log("Subcommands:");
+      console.log("  search <query>      federated search across known peers + local");
+      console.log("\nEnv:");
+      console.log("  ORACLE_API          API base URL (default http://localhost:47778)");
+      console.log("  ORACLE_PEERS        comma-separated peers: name@http://host:port,...");
+      return;
+    }
+    console.error(`\x1b[31m✗\x1b[0m unknown fed subcommand: ${args[1]}`);
+    console.error("  try: arra-cli fed search");
+    process.exit(1);
   }
 
   if (cmd === "config") {
