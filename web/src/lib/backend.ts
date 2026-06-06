@@ -86,6 +86,23 @@ export interface TraceListResponse {
   total: number;
 }
 
+export interface SearchLogEntry {
+  id?: number;
+  query: string;
+  type?: string;
+  mode?: string;
+  results_count?: number;
+  search_time_ms?: number;
+  created_at: number;
+  project?: string;
+  results?: string | Array<Record<string, unknown>> | null;
+}
+
+export interface SearchLogListResponse {
+  logs: SearchLogEntry[];
+  total?: number;
+}
+
 export interface TraceDetail extends TraceSummary {
   dig_points?: Array<Record<string, unknown>>;
   notes?: string;
@@ -166,6 +183,7 @@ export interface BackendClient {
   thread(id: number): Promise<ThreadDetail>;
   sendMessage(threadId: number, message: string): Promise<ConsultResponse>;
   traces(): Promise<TraceListResponse>;
+  logs(): Promise<SearchLogListResponse>;
   traceGet(id: string): Promise<TraceDetail>;
   traceChain(id: string): Promise<TraceChainResponse>;
   superseded(): Promise<SupersedeListResponse>;
@@ -243,6 +261,10 @@ export class MockBackend implements BackendClient {
 
   async traces(): Promise<TraceListResponse> {
     return { traces: [], total: 0 };
+  }
+
+  async logs(): Promise<SearchLogListResponse> {
+    return { logs: [], total: 0 };
   }
 
   async traceGet(id: string): Promise<TraceDetail> {
@@ -401,6 +423,10 @@ export class RealBackend implements BackendClient {
 
   async traces(): Promise<TraceListResponse> {
     return this.get("/api/traces");
+  }
+
+  async logs(): Promise<SearchLogListResponse> {
+    return this.get("/api/logs", { limit: 100 });
   }
 
   async traceGet(id: string): Promise<TraceDetail> {
