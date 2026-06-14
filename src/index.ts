@@ -677,15 +677,18 @@ async function main() {
   const readOnly = process.env.ORACLE_READ_ONLY === 'true' || process.argv.includes('--read-only');
   const server = new OracleMCPServer({ readOnly });
 
-  try {
-    console.error('[Startup] Pre-connecting to vector store...');
-    await server.preConnectVector();
-    console.error('[Startup] Vector store pre-connected successfully');
-  } catch (e) {
-    console.error('[Startup] Vector store pre-connect failed:', e instanceof Error ? e.message : e);
-  }
-
+  // Connect the stdio transport FIRST so the MCP `initialize` handshake is answered
+  // immediately. The vector pre-connect is optional (falls back to FTS5) and must NOT
+  // block startup — a slow/failed vector connect (e.g. missing apache-arrow) would
+  // otherwise delay the handshake past a strict client's init timeout, which closes the
+  // connection ("connection closed: initialize response" seen in Codex/omx).
   await server.run();
+
+  // Warm the vector store in the background; never block the handshake on it.
+  console.error('[Startup] Pre-connecting to vector store (background)...');
+  server.preConnectVector()
+    .then(() => console.error('[Startup] Vector store pre-connected successfully'))
+    .catch((e) => console.error('[Startup] Vector store pre-connect failed:', e instanceof Error ? e.message : e));
 }
 
 if (import.meta.main) {
