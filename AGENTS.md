@@ -54,7 +54,7 @@ overrides anything that conflicts. Mirrors `CLAUDE.md` Project Conventions.
   don't pad with helpers.
 - **Tests: nested, one behavior per file**, mirroring the route tree:
   `tests/http/<cluster>/<endpoint>.test.ts`. HTTP contract tests are
-  fetch-based against a spawned server (works for Hono now, Elysia after migration).
+  fetch-based against a spawned Elysia server.
 - **Web framework: Elysia** (TypeBox schemas). The Hono → Elysia migration is
   **complete** — all route clusters in `src/routes/` are native Elysia sub-apps
   composed in `src/server.ts`; no Hono remains. New clusters: add a `new Elysia()`
@@ -86,7 +86,7 @@ narrate every step; don't ask "should I proceed?" on obvious next steps.
 - `src/tools/` — MCP tools (`muninn_search`)
 - `src/gateway/`, `src/peer/` — federation
 - `src/vault/`, `src/trace/`, `src/learn/` — knowledge management
-- `src/routes/` (Hono) → `src/routes-elysia/` (Elysia, in migration)
+- `src/routes/` — Elysia route clusters (`.use()`-composed in `src/server.ts`)
 - HTTP backend on `:47778`; frontend (Vite) on `:3000` proxying `/api/*`
 
 ---
