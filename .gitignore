@@ -47,3 +47,16 @@ test-results/
 vault-report.html
 vault-repos.html
 vault-data.json
+
+services/**/__pycache__/
+services/**/*.pyc
+
+# Codex agent worktrees (git worktree, registered in .git/worktrees — not tracked)
+agents/
+
+# Per-machine maw state (engine map differs per oracle — committing clashes)
+.maw/
+.envrc
+
+# omx per-session project memory (not source of truth)
+.omx/

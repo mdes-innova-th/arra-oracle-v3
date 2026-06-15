@@ -5,9 +5,14 @@
 Updated 2026-04-19. These override anything below that conflicts.
 
 ### Versioning
-- **Always alpha.** `v{YY}.{M}.{D}-alpha.{HOUR}` per `scripts/calver.ts`. README says "Always Nightly."
+- **Always alpha.** `v{YY}.{M}.{D}-alpha.{HOUR}` per `scripts/calver.ts`. README says "Always Nightly." Never cut a stable version without explicit user direction in the active session.
 - Stable release (`--stable` flag) only for rare intentional milestones — not the default.
-- Bumps go through a dedicated `bump/alpha.N` PR so auto-tag + release workflows can fire cleanly.
+- **Branch ↔ channel mapping** (enforced by `calver-release.yml`, triggered on `package.json` changes):
+  - **`alpha` branch → PRE-RELEASE cut** → tag `vX.Y.Z-alpha.N` (prerelease, NOT marked latest). **This is the working trunk — push/PR feature work here** (via a `bump/alpha.N` PR so auto-tag + release workflows fire cleanly).
+  - **`main` branch → STABLE cut** → tag `vX.Y.Z` (marked latest). ⚠️ **Pushing/merging to `main` triggers a STABLE release.** Gated to explicit user direction only; a repo-local hook (`.claude/hooks/block-push-main.sh`) blocks pushes to `main`.
+  - prerelease flag derives from the version string suffix; branch is just the trigger.
+- arra-oracle-v3 is **github-only** (no npm). Install: `bun add -g github:Soul-Brews-Studio/arra-oracle-v3#vX.Y.Z`. The workflow only tags + writes release notes (build is `tsc --noEmit`, type-check only).
+- OMX directives are also persisted in `.omx/project-memory.json`; if session-start memory does not auto-load, this tracked CLAUDE.md policy is the durable source of truth.
 
 ### File size
 - **≤ 250 lines per file.** If a file would exceed, split by concern — don't pad with helpers.
