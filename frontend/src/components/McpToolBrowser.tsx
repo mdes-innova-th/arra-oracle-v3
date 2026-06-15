@@ -17,6 +17,7 @@ function ToolCard({ tool, onOpen }: { tool: McpTool; onOpen?: (tool: McpTool) =>
         <button
           className="focus-ring mt-4 rounded-xl border border-white/10 px-3 py-2 text-sm text-slate-200 hover:border-teal-300/40"
           type="button"
+          aria-label={`Open schema detail for ${tool.name}`}
           onClick={() => onOpen(tool)}
         >
           Open schema detail
@@ -71,6 +72,7 @@ export function McpToolBrowser({ onOpenTool }: { onOpenTool?: (tool: McpTool) =>
           className="focus-ring rounded-xl border border-white/10 px-4 py-2 text-sm text-slate-200 hover:border-teal-300/40 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={loading}
           type="button"
+          aria-label="Reload MCP tool list"
           onClick={() => void load()}
         >
           {loading ? <Spinner label="Reloading" /> : 'Reload'}
@@ -84,6 +86,7 @@ export function McpToolBrowser({ onOpenTool }: { onOpenTool?: (tool: McpTool) =>
           onChange={(event) => setFilter(event.target.value)}
           placeholder="Filter tools, groups, descriptions…"
           type="search"
+          aria-label="Filter MCP tools"
         />
         <p className="text-sm text-slate-500">{loading ? <Spinner label="Loading tools" /> : `${visible.length}/${tools.length} tools · ${groups} groups`}</p>
       </div>
@@ -93,7 +96,7 @@ export function McpToolBrowser({ onOpenTool }: { onOpenTool?: (tool: McpTool) =>
         <ErrorMessage
           title="Could not load MCP tools."
           message={error}
-          action={<button className="focus-ring rounded-lg border border-red-200/30 px-3 py-2 font-semibold text-red-50 hover:bg-red-200/10" type="button" onClick={() => void load()}>Retry</button>}
+          action={<button className="focus-ring rounded-lg border border-red-200/30 px-3 py-2 font-semibold text-red-50 hover:bg-red-200/10" type="button" aria-label="Retry loading MCP tools" onClick={() => void load()}>Retry</button>}
         />
       ) : null}
       {state === 'ready' && !visible.length ? <p className="rounded-xl border border-dashed border-white/10 p-6 text-sm text-slate-400">No MCP tools matched.</p> : null}

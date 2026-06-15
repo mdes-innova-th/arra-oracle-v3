@@ -51,13 +51,14 @@ export function VectorSearchWidget({ onOpenResults }: { onOpenResults?: (query: 
         <p className="mt-2 text-sm text-slate-400">Semantic search against Oracle memory through the Elysia API.</p>
       </div>
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:flex-row">
+      <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:flex-row" aria-label="Vector search form">
         <input
           className="focus-ring min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-slate-100 placeholder:text-slate-600"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search vector memory…"
           type="search"
+          aria-label="Vector search query"
         />
         <button
           className="focus-ring rounded-xl bg-teal-300 px-5 py-3 font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-not-allowed disabled:opacity-50"
@@ -74,6 +75,7 @@ export function VectorSearchWidget({ onOpenResults }: { onOpenResults?: (query: 
           className="focus-ring rounded-xl border border-white/10 px-3 py-2 text-sm text-slate-200 hover:border-teal-300/40 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={!query.trim()}
           type="button"
+          aria-label="Open full vector search results page"
           onClick={() => onOpenResults?.(query.trim())}
         >
           Open results page
@@ -85,7 +87,7 @@ export function VectorSearchWidget({ onOpenResults }: { onOpenResults?: (query: 
           <ErrorMessage
             title="Vector search failed."
             message={error}
-            action={lastQuery ? <button className="focus-ring rounded-lg border border-red-200/30 px-3 py-2 font-semibold text-red-50 hover:bg-red-200/10" type="button" onClick={() => void runSearch(lastQuery)}>Retry search</button> : null}
+            action={lastQuery ? <button className="focus-ring rounded-lg border border-red-200/30 px-3 py-2 font-semibold text-red-50 hover:bg-red-200/10" type="button" aria-label={`Retry vector search for ${lastQuery}`} onClick={() => void runSearch(lastQuery)}>Retry search</button> : null}
           />
         </div>
       ) : null}
