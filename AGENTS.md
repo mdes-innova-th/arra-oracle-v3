@@ -77,12 +77,17 @@ state, BLOCK and ask the lead — do not guess.
 
 ## 7. Reporting (codex → lead)
 
-**Done-only reporting** (cuts noise ~70%; family standard per ting). Do NOT send
-"starting" / "working" updates. Exactly two messages reach the lead:
-- ✅ `done <task> — commit <sha>, build pass, PR <url>` (+ screenshot if UI)
+**Three reports, no intermediate noise** (family standard; cross-checked tee+ting):
+- 🟢 `starting <task> — plan: ...` — send ON RECEIPT. This is a delivery-ACK:
+  `maw hey` can silently fail to reach a coder, so without it the lead can't tell
+  a lost dispatch from a working coder. Keep it.
 - ❌ `blocked: <exact reason>` (+ the alternative you already tried)
+- ✅ `done <task> — commit <sha>, build pass, PR <url>` (+ screenshot if UI)
 
-Never go dark and never forget the `done` report — silence reads as stalled.
+Do NOT report intermediate failures — handle your own implement→verify→fix loop
+silently (this is the ~70% noise cut, NOT dropping `starting`). Never go dark;
+never forget `done` — silence after `starting` reads as stalled, and the lead
+will peek/nudge.
 
 ### Done-criteria checklist (self-verify BEFORE reporting done)
 - [ ] `bun run build` / `tsc --noEmit` passes
