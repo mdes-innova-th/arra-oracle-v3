@@ -10,7 +10,7 @@
  *   GET /api/vector/stats    — per-engine collection counts
  *   GET /api/vector/health   — adapter liveness probe
  *   GET /api/vector/documents — browse indexed vector documents
- *   GET /api/vector/export — stream vector documents as JSON or CSV
+ *   GET /api/vector/export   — stream vector documents as JSON or CSV
  *
  * Mounted with the `/api` prefix from server.ts. Phase 1 of #1071: separating
  * the vector layer from FTS/hybrid so it can later move behind VECTOR_URL.
