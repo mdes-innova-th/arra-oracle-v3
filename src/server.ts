@@ -115,9 +115,9 @@ const requestLogger = createRequestLogger();
 
 const app = new Elysia()
   .onRequest(requestLogger.onRequest)
+  .use(createCorrelationMiddleware())
   .use(createPrivateNetworkPreflightMiddleware())
   .use(createCorsMiddleware())
-  .use(createCorrelationMiddleware())
   .use(createRateLimitMiddleware())
   .use(createApiKeyAuthMiddleware())
   .use(createMetricsLifecycle())
