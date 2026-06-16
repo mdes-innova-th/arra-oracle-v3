@@ -27,9 +27,10 @@ describe('request body size limit middleware', () => {
     expect(res.status).toBe(413);
     expect(requestId).toBeTruthy();
     expect(body).toEqual({
+      success: false,
       error: 'Payload Too Large',
+      code: 413,
       message: 'Request body exceeds 1KB limit.',
-      statusCode: 413,
       correlationId: requestId,
       limitKb: 1,
     });

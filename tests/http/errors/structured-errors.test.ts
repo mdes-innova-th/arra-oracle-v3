@@ -41,14 +41,12 @@ async function request(path: string, init?: RequestInit) {
 }
 
 function expectStructured(body: Record<string, unknown>, code: number) {
-  expect(body).toEqual({
-    error: expect.any(String),
-    code,
-    details: {
-      message: expect.any(String),
-      correlationId: expect.any(String),
-    },
-  });
+  expect(body.success).toBe(false);
+  expect(typeof body.error).toBe('string');
+  expect(body.code).toBe(code);
+  const details = body.details as Record<string, unknown>;
+  expect(typeof details.message).toBe('string');
+  expect(typeof details.correlationId).toBe('string');
 }
 
 function detailsOf(body: Record<string, unknown>) {
@@ -62,6 +60,7 @@ describe('structured error middleware', () => {
     expect(res.status).toBe(400);
     expect(res.headers.get('x-correlation-id')).toBe('test-correlation');
     expect(body).toEqual({
+      success: false,
       error: 'Bad Request',
       code: 400,
       details: {

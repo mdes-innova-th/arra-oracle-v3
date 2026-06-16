@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import path from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
 import { Elysia } from 'elysia';
+import { errorResponse } from '../types/error-response.ts';
 import { eq, type SQL } from 'drizzle-orm';
 
 export const TENANT_HEADER = 'X-Oracle-Tenant';
@@ -119,7 +120,7 @@ export function createTenantMiddleware() {
       }
     })
     .onBeforeHandle({ as: 'global' }, ({ tenantError }) => {
-      if (tenantError) return { error: tenantError };
+      if (tenantError) return errorResponse(tenantError, 400);
     })
     .onRequest(({ request }) => {
       tenantIdFor(request);
@@ -132,7 +133,7 @@ export function createTenantFetch(next: FetchHandler): FetchHandler {
       const tenantId = tenantIdFor(request);
       return runWithTenant(tenantId, () => next(request));
     } catch (error) {
-      return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 400 });
+      return Response.json(errorResponse(error instanceof Error ? error.message : String(error), 400), { status: 400 });
     }
   };
 }

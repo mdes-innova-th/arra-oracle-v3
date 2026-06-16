@@ -2,7 +2,6 @@ import { Elysia } from 'elysia';
 import { join } from 'node:path';
 import { swagger } from '@elysiajs/swagger';
 import { eq } from 'drizzle-orm';
-
 import { configure, writePidFile, removePidFile } from './process-manager/index.ts';
 import { PORT, ORACLE_DATA_DIR, VECTOR_URL } from './config.ts';
 import { ScoutAnnouncer, shouldStartScoutAnnouncer } from './peer/scout-announcer.ts';
@@ -31,6 +30,7 @@ import { createBodyLimitMiddleware } from './middleware/body-limit.ts';
 import { createNotFoundMiddleware } from './middleware/not-found.ts';
 import { createEtagMiddleware } from './middleware/etag.ts';
 import { createCompressMiddleware } from './middleware/compress.ts';
+import { createErrorResponseMiddleware } from './middleware/error-response.ts';
 import { createRequestDedupFetch } from './middleware/dedup.ts';
 import { createDbContextFetch } from './middleware/db-context.ts';
 import { createTenantFetch, createTenantMiddleware } from './middleware/tenant.ts';
@@ -127,6 +127,7 @@ const app = new Elysia()
   .use(createBodyLimitMiddleware())
   .use(createApiKeyAuthMiddleware())
   .use(createMetricsLifecycle())
+  .use(createErrorResponseMiddleware())
   .use(createCompressMiddleware())
   .use(createEtagMiddleware())
   .onBeforeHandle(({ request, set }) => {

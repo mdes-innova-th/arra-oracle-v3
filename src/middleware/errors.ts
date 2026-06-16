@@ -1,11 +1,8 @@
 import { Elysia } from 'elysia';
 import { REQUEST_ID_HEADER, RESPONSE_TIME_HEADER, requestIdFor, responseTimeFor } from './correlation.ts';
+import { errorResponse, type ErrorResponse } from '../types/error-response.ts';
 
-export type ApiErrorResponse = {
-  error: string;
-  code: number;
-  details?: unknown;
-};
+export type ApiErrorResponse = ErrorResponse;
 
 export type StructuredErrorResponse = {
   error: string;
@@ -18,8 +15,8 @@ export function apiErrorResponse<const T extends string, const C extends number,
   error: T,
   code: C,
   details: D,
-): { error: T; code: C; details: D } {
-  return { error, code, details };
+): ErrorResponse & { error: T; code: C; details: D } {
+  return errorResponse(error, code, details) as unknown as ErrorResponse & { error: T; code: C; details: D };
 }
 
 export class HttpError extends Error {

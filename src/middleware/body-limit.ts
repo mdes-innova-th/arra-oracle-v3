@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia';
 import { REQUEST_ID_HEADER, requestIdFor } from './correlation.ts';
+import { errorResponse, type ErrorResponse } from '../types/error-response.ts';
 
 export const DEFAULT_MAX_BODY_KB = 1024;
 const BYTES_PER_KB = 1024;
@@ -11,10 +12,10 @@ export type BodyLimitOptions = {
   maxKb?: number;
 };
 
-export type PayloadTooLargeResponse = {
+export type PayloadTooLargeResponse = ErrorResponse & {
   error: 'Payload Too Large';
+  code: 413;
   message: string;
-  statusCode: 413;
   correlationId: string;
   limitKb: number;
 };
@@ -75,9 +76,8 @@ function payloadTooLarge(request: Request, set: HeaderSetter, limitKb: number): 
   set.headers[REQUEST_ID_HEADER] = correlationId;
   set.headers['x-correlation-id'] = correlationId;
   return {
-    error: 'Payload Too Large',
+    ...errorResponse('Payload Too Large', 413),
     message: `Request body exceeds ${limitKb}KB limit.`,
-    statusCode: 413,
     correlationId,
     limitKb,
   };

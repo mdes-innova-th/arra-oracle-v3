@@ -1,8 +1,9 @@
 import { Elysia } from 'elysia';
 import { apiRequestPath } from './api-version.ts';
 import { apiErrorResponse } from './errors.ts';
+import type { ErrorResponse } from '../types/error-response.ts';
 
-export type NotFoundResponse = {
+export type NotFoundResponse = ErrorResponse & {
   error: 'Not Found';
   code: 404;
   details: {
@@ -11,7 +12,7 @@ export type NotFoundResponse = {
   };
 };
 
-export type MethodNotAllowedResponse = {
+export type MethodNotAllowedResponse = ErrorResponse & {
   error: 'Method Not Allowed';
   code: 405;
   details: {
