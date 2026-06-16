@@ -49,7 +49,7 @@ function readValue(args: string[], flag: string): string | undefined {
 function parseFormat(value: string): ExportFormatName {
   const formatter = exportFormatterFor(value);
   if (!formatter) throw new Error(`unsupported format: ${value}`);
-  return formatter.format;
+  return formatter.format ?? value;
 }
 
 export function parseExportOptions(args: string[]): DataExportOptions {

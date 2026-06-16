@@ -3,13 +3,8 @@
  */
 
 import { Elysia, t } from 'elysia';
-import {
-  exportFormatterFor,
-  rowsFromEmbeddingDump,
-  supportedExportFormats,
-  VECTOR_EXPORT_COLUMNS,
-} from '../../vector/export-formats.ts';
 import { getVectorStoreByModel } from '../../vector/factory.ts';
+import { getExportFormat, listExportFormats } from '../../vector/export-formats.ts';
 import type { VectorStoreAdapter } from '../../vector/types.ts';
 
 interface VectorExportDeps {
@@ -19,21 +14,22 @@ interface VectorExportDeps {
 const DEFAULT_COLLECTION = 'bge-m3';
 const DEFAULT_EXPORT_LIMIT = 50_000;
 
-function invalidFormat(format: string) {
-  return { error: `Invalid format: expected ${supportedExportFormats().join(' or ')}`, format };
-}
-
 export function createVectorExportEndpoint(deps: VectorExportDeps = {}) {
   const getStore = deps.getStore ?? getVectorStoreByModel;
 
-  return new Elysia().get(
-    '/vector/export',
-    async ({ query, set }) => {
+  return new Elysia()
+    .get('/vector/export/formats', () => listExportFormats(), {
+      detail: {
+        tags: ['vector'],
+        summary: 'List available vector export formats',
+      },
+    })
+    .get('/vector/export', async ({ query, set }) => {
       const format = query.format || 'json';
-      const formatter = exportFormatterFor(format);
+      const formatter = getExportFormat(format);
       if (!formatter) {
         set.status = 400;
-        return invalidFormat(format);
+        return { error: `Invalid format: expected ${listExportFormats().join(' or ')}` };
       }
 
       const collection = query.collection || DEFAULT_COLLECTION;
@@ -49,12 +45,12 @@ export function createVectorExportEndpoint(deps: VectorExportDeps = {}) {
         const stats = await store.getStats().catch(() => ({ count: 0 }));
         const limit = stats.count > 0 ? stats.count : DEFAULT_EXPORT_LIMIT;
         const dump = await store.getAllEmbeddings(limit);
-        const rows = rowsFromEmbeddingDump(dump);
+        const stream = formatter(dump);
 
-        return new Response(formatter.stream({ rows, columns: VECTOR_EXPORT_COLUMNS }), {
+        return new Response(stream, {
           headers: {
-            'Content-Type': formatter.mimeType,
-            'Content-Disposition': `attachment; filename="${collection}.${formatter.extension}"`,
+            'Content-Type': formatter.contentType ?? formatter.mimeType ?? 'application/octet-stream',
+            'Content-Disposition': `attachment; filename="${collection}.${formatter.extension ?? format}"`,
           },
         });
       } catch (error) {
@@ -62,8 +58,7 @@ export function createVectorExportEndpoint(deps: VectorExportDeps = {}) {
         const message = error instanceof Error ? error.message : String(error);
         return { error: 'Vector export failed', message };
       }
-    },
-    {
+    }, {
       query: t.Object({
         collection: t.Optional(t.String()),
         format: t.Optional(t.String()),
@@ -73,8 +68,7 @@ export function createVectorExportEndpoint(deps: VectorExportDeps = {}) {
         menu: { group: 'tools', order: 57 },
         summary: 'Export a vector collection as JSON, JSONL, CSV, or Markdown',
       },
-    },
-  );
+    });
 }
 
 export const vectorExportEndpoint = createVectorExportEndpoint();

@@ -1,7 +1,7 @@
 import type { VectorStoreAdapter } from './types.ts';
 
 export type EmbeddingDump = Awaited<ReturnType<NonNullable<VectorStoreAdapter['getAllEmbeddings']>>>;
-export type ExportFormatName = 'json' | 'jsonl' | 'csv' | 'markdown';
+export type ExportFormatName = string;
 export type ExportRow = Record<string, unknown>;
 
 export interface ExportFormatterInput {
@@ -9,14 +9,16 @@ export interface ExportFormatterInput {
   rows?: ExportRow[];
   columns?: string[];
   pretty?: boolean;
+  dump?: EmbeddingDump;
 }
 
-export interface ExportFormatter {
-  readonly format: ExportFormatName;
-  readonly mimeType: string;
-  readonly extension: string;
-  stream(input: ExportFormatterInput): ReadableStream<Uint8Array>;
-}
+export type ExportFormatter = ((dump: EmbeddingDump) => ReadableStream<Uint8Array>) & {
+  format?: string;
+  contentType?: string;
+  mimeType?: string;
+  extension?: string;
+  stream?: (input: ExportFormatterInput) => ReadableStream<Uint8Array>;
+};
 
 export const VECTOR_EXPORT_COLUMNS = ['id', 'document', 'type', 'source_file', 'concepts'];
 const encoder = new TextEncoder();
@@ -102,67 +104,85 @@ function markdownBlocks(rows: ExportRow[]): string {
     .join('\n\n---\n\n');
 }
 
+function normalizeName(name: string, strict = true): string {
+  const normalized = name.trim().toLowerCase();
+  if (!/^[a-z0-9-]+$/.test(normalized)) {
+    if (strict) throw new Error(`invalid export format: ${name}`);
+    return '';
+  }
+  return normalized;
+}
+
+function defineFormatter(name: string, meta: { contentType: string; extension: string }, stream: ExportFormatter['stream']): ExportFormatter {
+  const formatter = ((dump: EmbeddingDump) => stream!({ rows: rowsFromEmbeddingDump(dump), columns: VECTOR_EXPORT_COLUMNS, dump })) as ExportFormatter;
+  return Object.assign(formatter, { format: name, mimeType: meta.contentType, ...meta, stream });
+}
+
 export function rowsFromEmbeddingDump(dump: EmbeddingDump): ExportRow[] {
   return dump.ids.map((_, index) => rowAt(dump, index));
 }
 
-export const jsonExportFormatter: ExportFormatter = {
-  format: 'json',
-  mimeType: 'application/json; charset=utf-8',
+export const jsonExportFormatter = defineFormatter('json', {
+  contentType: 'application/json; charset=utf-8',
   extension: 'json',
-  stream(input) {
-    const spacing = input.pretty ? 2 : undefined;
-    return streamText(`${JSON.stringify(jsonValue(input), null, spacing)}\n`);
-  },
-};
+}, (input) => {
+  const spacing = input.pretty ? 2 : undefined;
+  return streamText(`${JSON.stringify(jsonValue(input), null, spacing)}\n`);
+});
 
-export const jsonlExportFormatter: ExportFormatter = {
-  format: 'jsonl',
-  mimeType: 'application/x-ndjson; charset=utf-8',
+export const jsonlExportFormatter = defineFormatter('jsonl', {
+  contentType: 'application/x-ndjson; charset=utf-8',
   extension: 'jsonl',
-  stream(input) {
-    const lines = jsonlValues(input).map((value) => JSON.stringify(value));
-    return streamText(lines.length ? `${lines.join('\n')}\n` : '');
-  },
-};
+}, (input) => {
+  const lines = jsonlValues(input).map((value) => JSON.stringify(value));
+  return streamText(lines.length ? `${lines.join('\n')}\n` : '');
+});
 
-export const csvExportFormatter: ExportFormatter = {
-  format: 'csv',
-  mimeType: 'text/csv; charset=utf-8',
+export const csvExportFormatter = defineFormatter('csv', {
+  contentType: 'text/csv; charset=utf-8',
   extension: 'csv',
-  stream(input) {
-    const rows = input.rows ?? [];
-    const columns = columnsFor(rows, input.columns);
-    const lines = [columns.join(',')];
-    for (const row of rows) lines.push(columns.map((column) => csvCell(row[column])).join(','));
-    return streamText(`${lines.join('\n')}\n`);
-  },
-};
+}, (input) => {
+  const rows = input.rows ?? [];
+  const columns = columnsFor(rows, input.columns);
+  const lines = [columns.join(',')];
+  for (const row of rows) lines.push(columns.map((column) => csvCell(row[column])).join(','));
+  return streamText(`${lines.join('\n')}\n`);
+});
 
-export const markdownExportFormatter: ExportFormatter = {
-  format: 'markdown',
-  mimeType: 'text/markdown; charset=utf-8',
+export const markdownExportFormatter = defineFormatter('markdown', {
+  contentType: 'text/markdown; charset=utf-8',
   extension: 'md',
-  stream(input) {
-    return streamText(markdownBlocks(input.rows ?? []));
-  },
-};
+}, (input) => streamText(markdownBlocks(input.rows ?? [])));
 
-export const exportFormatters: Record<ExportFormatName, ExportFormatter> = {
-  json: jsonExportFormatter,
-  jsonl: jsonlExportFormatter,
-  csv: csvExportFormatter,
-  markdown: markdownExportFormatter,
-};
+export const exportFormatters: Record<string, ExportFormatter> = {};
 
-export function exportFormatterFor(format: string): ExportFormatter | undefined {
-  return exportFormatters[format as ExportFormatName];
+export function registerExportFormat(name: string, formatter: ExportFormatter): void {
+  if (typeof formatter !== 'function') throw new Error(`formatter for ${name} must be a function`);
+  exportFormatters[normalizeName(name)] = formatter;
 }
 
-export function supportedExportFormats(): ExportFormatName[] {
-  return Object.keys(exportFormatters) as ExportFormatName[];
+export function getExportFormat(name: string): ExportFormatter | undefined {
+  return exportFormatters[normalizeName(name, false)];
+}
+
+export function exportFormatterFor(format: string): ExportFormatter | undefined {
+  return getExportFormat(format);
+}
+
+export function listExportFormats(): string[] {
+  return Object.keys(exportFormatters).sort();
+}
+
+export function supportedExportFormats(): string[] {
+  return listExportFormats();
 }
 
 export async function exportText(formatter: ExportFormatter, input: ExportFormatterInput): Promise<string> {
+  if (!formatter.stream) throw new Error(`export format ${formatter.format ?? 'unknown'} does not support row input`);
   return await new Response(formatter.stream(input)).text();
 }
+
+registerExportFormat('json', jsonExportFormatter);
+registerExportFormat('jsonl', jsonlExportFormatter);
+registerExportFormat('csv', csvExportFormatter);
+registerExportFormat('markdown', markdownExportFormatter);
