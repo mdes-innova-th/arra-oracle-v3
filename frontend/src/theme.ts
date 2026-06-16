@@ -6,16 +6,13 @@ function browserWindow(): Window | undefined {
   return typeof window === 'undefined' ? undefined : window;
 }
 
-function systemTheme(): ThemeMode {
-  return browserWindow()?.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
 export function readStoredTheme(): ThemeMode {
   try {
     const stored = browserWindow()?.localStorage.getItem(THEME_KEY);
-    return stored === 'light' || stored === 'dark' ? stored : systemTheme();
+    // Dark is the hero experience; absent an explicit saved choice, default to dark.
+    return stored === 'light' || stored === 'dark' ? stored : 'dark';
   } catch {
-    return systemTheme();
+    return 'dark';
   }
 }
 

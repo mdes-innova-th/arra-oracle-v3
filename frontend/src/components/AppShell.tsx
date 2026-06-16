@@ -8,6 +8,7 @@ import { StatCard } from './StatCard';
 import { ThemeToggle } from './ThemeToggle';
 import { TauriBadge } from './TauriBadge';
 import { GlobalSearch } from './GlobalSearch';
+import { ConstellationHero } from './ConstellationHero';
 import type { MetricsSnapshot } from '../../../src/server/types';
 
 type AppShellProps = {
@@ -38,6 +39,7 @@ export function AppShell({
   const location = useLocation();
   const contentRef = useRef<HTMLDivElement>(null);
   const meta = useMemo(() => routeMeta(location.pathname, location.search), [location.pathname, location.search]);
+  const isHome = location.pathname === '/';
 
   useEffect(() => {
     document.title = `${meta.title} · Arra Oracle`;
@@ -48,17 +50,17 @@ export function AppShell({
   }, [location.pathname, location.search]);
 
   const navItems: NavItem[] = [
-    { to: '/', label: 'Menu', description: 'Navigation rows from /api/menu', badge: loading ? '…' : menuCount },
-    { to: '/plugins', label: 'Plugins', description: 'Registered plugins and surfaces', badge: loading ? '…' : pluginCount },
-    { to: '/search', label: 'Search', description: 'Full-text menu search' },
-    { to: '/vector', label: 'Vector Dashboard', description: 'Collection health and indexing', end: true },
-    { to: '/vector/documents', label: 'Document Browser', description: 'Browse indexed vector documents' },
-    { to: '/vector/search', label: 'Vector Search', description: 'Semantic preview by collection' },
-    { to: '/vector/export', label: 'Export', description: 'Download vector collections' },
-    { to: '/learn', label: 'Learn', description: 'Create and edit learnings' },
-    { to: '/metrics', label: 'Metrics', description: 'Runtime counters from /api/v1/metrics' },
-    { to: '/mcp', label: 'MCP', description: 'Tool schemas and groups' },
-    { to: '/settings', label: 'Settings', description: 'Storage, embedder, and DB status' },
+    { to: '/', label: 'Menu', description: 'Navigation rows from /api/menu', icon: 'menu', badge: loading ? '…' : menuCount },
+    { to: '/plugins', label: 'Plugins', description: 'Registered plugins and surfaces', icon: 'plugins', badge: loading ? '…' : pluginCount },
+    { to: '/search', label: 'Search', description: 'Full-text menu search', icon: 'search' },
+    { to: '/vector', label: 'Vector Dashboard', description: 'Collection health and indexing', icon: 'vector', end: true },
+    { to: '/vector/documents', label: 'Document Browser', description: 'Browse indexed vector documents', icon: 'documents' },
+    { to: '/vector/search', label: 'Vector Search', description: 'Semantic preview by collection', icon: 'vsearch' },
+    { to: '/vector/export', label: 'Export', description: 'Download vector collections', icon: 'export' },
+    { to: '/learn', label: 'Learn', description: 'Create and edit learnings', icon: 'learn' },
+    { to: '/metrics', label: 'Metrics', description: 'Runtime counters from /api/v1/metrics', icon: 'metrics' },
+    { to: '/mcp', label: 'MCP', description: 'Tool schemas and groups', icon: 'mcp' },
+    { to: '/settings', label: 'Settings', description: 'Storage, embedder, and DB status', icon: 'settings' },
   ];
   const requestValue = metricsLoading ? <Spinner label="Loading metrics" /> : metrics?.requestCount ?? '—';
   const responseValue = metricsLoading ? <Spinner label="Loading metrics" /> : `${metrics?.avgResponseMs ?? 0} ms`;
@@ -84,7 +86,7 @@ export function AppShell({
       >
         Skip to main content
       </a>
-      <div className="mx-auto grid w-full max-w-7xl gap-4 px-3 py-3 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-[18rem_1fr] lg:px-8">
+      <div className="mx-auto grid w-full max-w-[88rem] gap-4 px-3 py-3 sm:gap-5 sm:px-5 sm:py-5 lg:grid-cols-[4.25rem_1fr] lg:px-6">
         <NavSidebar items={navItems} />
         <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
           <header className="flex flex-col gap-5 rounded-3xl border border-slate-200 bg-white/85 p-4 shadow-2xl shadow-slate-200/60 backdrop-blur sm:p-6 lg:flex-row lg:items-end lg:justify-between dark:border-white/10 dark:bg-slate-950/70 dark:shadow-black/30">
@@ -107,13 +109,29 @@ export function AppShell({
             </div>
           </header>
 
-          <section className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5" aria-label="Summary">
-            <StatCard label="Menu items" value={loading ? <Spinner label="Loading" /> : menuCount} detail="from /api/menu" />
-            <StatCard label="Plugins" value={loading ? <Spinner label="Loading" /> : pluginCount} detail="from /api/v1/plugins" />
-            <StatCard label="Surfaces" value={loading ? <Spinner label="Loading" /> : surfaceCount} detail={`updated ${updatedAt}`} />
-            <StatCard label="Requests" value={requestValue} detail={metricsDetail} />
-            <StatCard label="Avg response" value={responseValue} detail="real-time backend latency" />
-          </section>
+          {isHome ? (
+            <ConstellationHero
+              v={{
+                menu: menuCount,
+                plugins: pluginCount,
+                surfaces: surfaceCount,
+                requests: requestValue,
+                latency: responseValue,
+                active: metrics?.activeConnections ?? 0,
+                uptime: metrics ? `${Math.round(metrics.uptime)}s` : '—',
+                updatedAt,
+                loading,
+              }}
+            />
+          ) : (
+            <section className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5" aria-label="Summary">
+              <StatCard label="Menu items" value={loading ? <Spinner label="Loading" /> : menuCount} detail="from /api/menu" />
+              <StatCard label="Plugins" value={loading ? <Spinner label="Loading" /> : pluginCount} detail="from /api/v1/plugins" />
+              <StatCard label="Surfaces" value={loading ? <Spinner label="Loading" /> : surfaceCount} detail={`updated ${updatedAt}`} />
+              <StatCard label="Requests" value={requestValue} detail={metricsDetail} />
+              <StatCard label="Avg response" value={responseValue} detail="real-time backend latency" />
+            </section>
+          )}
 
           {error ? <ErrorMessage title="Could not load backend data." message={error} action={retry} /> : null}
           <div id="main-content" ref={contentRef} tabIndex={-1} className="focus:outline-none">
