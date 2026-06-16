@@ -173,7 +173,7 @@ export const COMMANDS: Record<string, Spec> = {
   feed: { tool: 'oracle_feed', method: 'GET', help: 'feed', build: () => route('/api/feed'), format: formatRows('feed', ['feed', 'items', 'entries']) },
   menu: { tool: 'oracle_menu', method: 'GET', help: 'menu', build: () => route('/api/menu'), format: formatRows('menu', ['items', 'menu']) },
   vector: { tool: 'oracle_vector', method: 'GET', help: 'vector', build: () => route('/api/vector/config'), format: d => `arra vector: ${preview(d, 700)}` },
-  export: { tool: 'oracle_export', method: 'GET', help: 'export [--collection bge-m3] [--format json|csv]', build: p => route('/api/vector/export', { collection: f(p, 'collection') || p.pos[0], format: f(p, 'format') || 'json' }), format: d => typeof d === 'string' ? d : preview(d, 1200) },
+  export: { tool: 'oracle_export', method: 'GET', help: 'export [--collection bge-m3] [--format json|jsonl|csv|markdown]', build: p => route('/api/vector/export', { collection: f(p, 'collection') || p.pos[0], format: f(p, 'format') || 'json' }), format: d => typeof d === 'string' ? d : preview(d, 1200) },
   vector_index: { tool: 'oracle_vector_index', method: 'POST', write: true, help: 'vector-index [--model nomic|bge-m3|qwen3|all]', build: p => route('/api/vector/index/start', undefined, { model: f(p, 'model') }), format: formatOk('vector-index') },
   vector_status: { tool: 'oracle_vector_status', method: 'GET', help: 'vector-status', build: () => route('/api/vector/index/status'), format: d => `arra vector-status: ${preview(d, 700)}` },
   vector_stop: { tool: 'oracle_vector_stop', method: 'POST', write: true, help: 'vector-stop', build: () => route('/api/vector/index/stop'), format: formatOk('vector-stop') },

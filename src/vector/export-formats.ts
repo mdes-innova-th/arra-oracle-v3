@@ -1,7 +1,7 @@
 import type { VectorStoreAdapter } from './types.ts';
 
 export type EmbeddingDump = Awaited<ReturnType<NonNullable<VectorStoreAdapter['getAllEmbeddings']>>>;
-export type ExportFormatName = 'json' | 'jsonl' | 'csv';
+export type ExportFormatName = 'json' | 'jsonl' | 'csv' | 'markdown';
 export type ExportRow = Record<string, unknown>;
 
 export interface ExportFormatterInput {
@@ -87,6 +87,21 @@ function rowAt(dump: EmbeddingDump, index: number): ExportRow {
   };
 }
 
+function markdownBlocks(rows: ExportRow[]): string {
+  const files = new Map<string, string[]>();
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const path = text(row.source_file ?? row.sourceFile ?? row.id) || `document-${i + 1}`;
+    const blocks = files.get(path) ?? [];
+    const document = text(row.document ?? row.content ?? row.text).trim();
+    if (document) blocks.push(document);
+    files.set(path, blocks);
+  }
+  return [...files.entries()]
+    .map(([path, blocks]) => [`<!-- source: ${path} -->`, ...blocks].join('\n\n'))
+    .join('\n\n---\n\n');
+}
+
 export function rowsFromEmbeddingDump(dump: EmbeddingDump): ExportRow[] {
   return dump.ids.map((_, index) => rowAt(dump, index));
 }
@@ -124,10 +139,20 @@ export const csvExportFormatter: ExportFormatter = {
   },
 };
 
+export const markdownExportFormatter: ExportFormatter = {
+  format: 'markdown',
+  mimeType: 'text/markdown; charset=utf-8',
+  extension: 'md',
+  stream(input) {
+    return streamText(markdownBlocks(input.rows ?? []));
+  },
+};
+
 export const exportFormatters: Record<ExportFormatName, ExportFormatter> = {
   json: jsonExportFormatter,
   jsonl: jsonlExportFormatter,
   csv: csvExportFormatter,
+  markdown: markdownExportFormatter,
 };
 
 export function exportFormatterFor(format: string): ExportFormatter | undefined {
