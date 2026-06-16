@@ -3,8 +3,13 @@
  */
 
 import { Elysia, t } from 'elysia';
+import {
+  exportFormatterFor,
+  rowsFromEmbeddingDump,
+  supportedExportFormats,
+  VECTOR_EXPORT_COLUMNS,
+} from '../../vector/export-formats.ts';
 import { getVectorStoreByModel } from '../../vector/factory.ts';
-import { exportFormatters } from '../../vector/export-formats.ts';
 import type { VectorStoreAdapter } from '../../vector/types.ts';
 
 interface VectorExportDeps {
@@ -14,8 +19,8 @@ interface VectorExportDeps {
 const DEFAULT_COLLECTION = 'bge-m3';
 const DEFAULT_EXPORT_LIMIT = 50_000;
 
-function contentType(format: string): string {
-  return format === 'csv' ? 'text/csv; charset=utf-8' : 'application/json; charset=utf-8';
+function invalidFormat(format: string) {
+  return { error: `Invalid format: expected ${supportedExportFormats().join(' or ')}`, format };
 }
 
 export function createVectorExportEndpoint(deps: VectorExportDeps = {}) {
@@ -25,10 +30,10 @@ export function createVectorExportEndpoint(deps: VectorExportDeps = {}) {
     '/vector/export',
     async ({ query, set }) => {
       const format = query.format || 'json';
-      const formatter = exportFormatters[format];
+      const formatter = exportFormatterFor(format);
       if (!formatter) {
         set.status = 400;
-        return { error: `Invalid format: expected ${Object.keys(exportFormatters).join(' or ')}` };
+        return invalidFormat(format);
       }
 
       const collection = query.collection || DEFAULT_COLLECTION;
@@ -44,12 +49,12 @@ export function createVectorExportEndpoint(deps: VectorExportDeps = {}) {
         const stats = await store.getStats().catch(() => ({ count: 0 }));
         const limit = stats.count > 0 ? stats.count : DEFAULT_EXPORT_LIMIT;
         const dump = await store.getAllEmbeddings(limit);
-        const stream = formatter(dump);
+        const rows = rowsFromEmbeddingDump(dump);
 
-        return new Response(stream, {
+        return new Response(formatter.stream({ rows, columns: VECTOR_EXPORT_COLUMNS }), {
           headers: {
-            'Content-Type': contentType(format),
-            'Content-Disposition': `attachment; filename="${collection}.${format}"`,
+            'Content-Type': formatter.mimeType,
+            'Content-Disposition': `attachment; filename="${collection}.${formatter.extension}"`,
           },
         });
       } catch (error) {

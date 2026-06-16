@@ -77,6 +77,21 @@ describe("data export/import CLI", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
+
+  test("exports vault documents as CSV through shared formatter", async () => {
+    await seedDocument(dbPath);
+
+    const exported = await runCli(["export", "--format", "csv"], env);
+
+    expect(exported.code).toBe(0);
+    expect(exported.stdout.split("\n")[0]).toBe(
+      "id,type,sourceFile,concepts,createdAt,updatedAt,indexedAt,supersededBy,supersededAt,supersededReason,origin,project,createdBy",
+    );
+    expect(exported.stdout).toContain(
+      '"export-import-doc","learning","ψ/learnings/export-import.md","[""export"",""import""]"',
+    );
+  }, 20_000);
+
   test("round-trips vault documents through JSON", async () => {
     const outFile = join(root, "vault-export.json");
     await seedDocument(dbPath);

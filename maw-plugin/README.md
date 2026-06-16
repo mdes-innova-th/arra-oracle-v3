@@ -34,6 +34,7 @@ maw arra settings
 maw arra feed
 maw arra menu
 maw arra vector
+maw arra export --format csv
 maw arra vector-config
 maw arra vector-config --json
 maw arra vector-config set bge-m3 adapter qdrant

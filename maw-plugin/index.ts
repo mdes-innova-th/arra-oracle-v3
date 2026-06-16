@@ -31,7 +31,6 @@ export function buildFrontendUrl(env: Record<string, string | undefined> = proce
   return `${resolveFrontendUrl(env)}/?api=${resolveBaseUrl(env)}`;
 }
 
-
 function runCommand(cmd: string, args: string[], options: RunOptions = {}): Promise<RunResult> {
   return new Promise((resolve, reject) => {
     const stdout: Buffer[] = [];
@@ -80,7 +79,7 @@ async function requestJson(path: string, init: RequestInit = {}): Promise<unknow
   try { res = await fetch(`${base}${path}`, { ...init, headers }); }
   catch (error) { throw new Error(`Cannot reach ARRA at ${base}: ${error instanceof Error ? error.message : String(error)}`); }
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  const type = res.headers.get('content-type') ?? '', data = text && type.includes('application/json') ? JSON.parse(text) : text || null;
   if (!res.ok) {
     const message = data && typeof data === 'object' && 'error' in data ? String((data as { error: unknown }).error) : text;
     throw new Error(`HTTP ${res.status}${message ? `: ${message}` : ''}`);
@@ -174,6 +173,7 @@ export const COMMANDS: Record<string, Spec> = {
   feed: { tool: 'oracle_feed', method: 'GET', help: 'feed', build: () => route('/api/feed'), format: formatRows('feed', ['feed', 'items', 'entries']) },
   menu: { tool: 'oracle_menu', method: 'GET', help: 'menu', build: () => route('/api/menu'), format: formatRows('menu', ['items', 'menu']) },
   vector: { tool: 'oracle_vector', method: 'GET', help: 'vector', build: () => route('/api/vector/config'), format: d => `arra vector: ${preview(d, 700)}` },
+  export: { tool: 'oracle_export', method: 'GET', help: 'export [--collection bge-m3] [--format json|csv]', build: p => route('/api/vector/export', { collection: f(p, 'collection') || p.pos[0], format: f(p, 'format') || 'json' }), format: d => typeof d === 'string' ? d : preview(d, 1200) },
   vector_index: { tool: 'oracle_vector_index', method: 'POST', write: true, help: 'vector-index [--model nomic|bge-m3|qwen3|all]', build: p => route('/api/vector/index/start', undefined, { model: f(p, 'model') }), format: formatOk('vector-index') },
   vector_status: { tool: 'oracle_vector_status', method: 'GET', help: 'vector-status', build: () => route('/api/vector/index/status'), format: d => `arra vector-status: ${preview(d, 700)}` },
   vector_stop: { tool: 'oracle_vector_stop', method: 'POST', write: true, help: 'vector-stop', build: () => route('/api/vector/index/stop'), format: formatOk('vector-stop') },

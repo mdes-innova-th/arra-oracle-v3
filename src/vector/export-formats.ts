@@ -1,22 +1,46 @@
 import type { VectorStoreAdapter } from './types.ts';
 
 export type EmbeddingDump = Awaited<ReturnType<NonNullable<VectorStoreAdapter['getAllEmbeddings']>>>;
-export type ExportFormatter = (dump: EmbeddingDump) => ReadableStream<Uint8Array>;
+export type ExportFormatName = 'json' | 'csv';
+export type ExportRow = Record<string, unknown>;
 
-interface ExportRow {
-  id: string;
-  document: string;
-  type: string;
-  source_file: string;
-  concepts: string[];
+export interface ExportFormatterInput {
+  value?: unknown;
+  rows?: ExportRow[];
+  columns?: string[];
+  pretty?: boolean;
 }
 
+export interface ExportFormatter {
+  readonly format: ExportFormatName;
+  readonly mimeType: string;
+  readonly extension: string;
+  stream(input: ExportFormatterInput): ReadableStream<Uint8Array>;
+}
+
+export const VECTOR_EXPORT_COLUMNS = ['id', 'document', 'type', 'source_file', 'concepts'];
 const encoder = new TextEncoder();
+
+function streamText(text: string): ReadableStream<Uint8Array> {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(text));
+      controller.close();
+    },
+  });
+}
 
 function text(value: unknown): string {
   if (typeof value === 'string') return value;
   if (value == null) return '';
   return String(value);
+}
+
+function valueText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value == null) return '';
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
+  return JSON.stringify(value);
 }
 
 function concepts(value: unknown): string[] {
@@ -25,10 +49,24 @@ function concepts(value: unknown): string[] {
   try {
     const parsed = JSON.parse(value);
     if (Array.isArray(parsed)) return parsed.map(text).filter(Boolean);
-  } catch {
-    // fall through to comma split
-  }
+  } catch { /* fall through to comma split */ }
   return value.split(',').map((part) => part.trim()).filter(Boolean);
+}
+
+function csvCell(value: unknown): string {
+  return `"${valueText(value).replaceAll('"', '""')}"`;
+}
+
+function columnsFor(rows: ExportRow[], requested?: string[]): string[] {
+  if (requested?.length) return requested;
+  const seen = new Set<string>();
+  for (const row of rows) for (const key of Object.keys(row)) seen.add(key);
+  return [...seen];
+}
+
+function jsonValue(input: ExportFormatterInput): unknown {
+  if ('value' in input) return input.value;
+  return input.rows ?? [];
 }
 
 function rowAt(dump: EmbeddingDump, index: number): ExportRow {
@@ -43,47 +81,46 @@ function rowAt(dump: EmbeddingDump, index: number): ExportRow {
   };
 }
 
-function streamJson(dump: EmbeddingDump): ReadableStream<Uint8Array> {
-  return new ReadableStream({
-    start(controller) {
-      controller.enqueue(encoder.encode('['));
-      for (let i = 0; i < dump.ids.length; i++) {
-        if (i > 0) controller.enqueue(encoder.encode(','));
-        controller.enqueue(encoder.encode(JSON.stringify(rowAt(dump, i))));
-      }
-      controller.enqueue(encoder.encode(']'));
-      controller.close();
-    },
-  });
+export function rowsFromEmbeddingDump(dump: EmbeddingDump): ExportRow[] {
+  return dump.ids.map((_, index) => rowAt(dump, index));
 }
 
-function csvCell(value: unknown): string {
-  return `"${text(value).replaceAll('"', '""')}"`;
-}
-
-function csvLine(row: ExportRow): string {
-  return [
-    csvCell(row.id),
-    csvCell(row.document),
-    csvCell(row.type),
-    csvCell(row.source_file),
-    csvCell(JSON.stringify(row.concepts)),
-  ].join(',');
-}
-
-function streamCsv(dump: EmbeddingDump): ReadableStream<Uint8Array> {
-  return new ReadableStream({
-    start(controller) {
-      controller.enqueue(encoder.encode('id,document,type,source_file,concepts\n'));
-      for (let i = 0; i < dump.ids.length; i++) {
-        controller.enqueue(encoder.encode(`${csvLine(rowAt(dump, i))}\n`));
-      }
-      controller.close();
-    },
-  });
-}
-
-export const exportFormatters: Record<string, ExportFormatter> = {
-  json: streamJson,
-  csv: streamCsv,
+export const jsonExportFormatter: ExportFormatter = {
+  format: 'json',
+  mimeType: 'application/json; charset=utf-8',
+  extension: 'json',
+  stream(input) {
+    const spacing = input.pretty ? 2 : undefined;
+    return streamText(`${JSON.stringify(jsonValue(input), null, spacing)}\n`);
+  },
 };
+
+export const csvExportFormatter: ExportFormatter = {
+  format: 'csv',
+  mimeType: 'text/csv; charset=utf-8',
+  extension: 'csv',
+  stream(input) {
+    const rows = input.rows ?? [];
+    const columns = columnsFor(rows, input.columns);
+    const lines = [columns.join(',')];
+    for (const row of rows) lines.push(columns.map((column) => csvCell(row[column])).join(','));
+    return streamText(`${lines.join('\n')}\n`);
+  },
+};
+
+export const exportFormatters: Record<ExportFormatName, ExportFormatter> = {
+  json: jsonExportFormatter,
+  csv: csvExportFormatter,
+};
+
+export function exportFormatterFor(format: string): ExportFormatter | undefined {
+  return exportFormatters[format as ExportFormatName];
+}
+
+export function supportedExportFormats(): ExportFormatName[] {
+  return Object.keys(exportFormatters) as ExportFormatName[];
+}
+
+export async function exportText(formatter: ExportFormatter, input: ExportFormatterInput): Promise<string> {
+  return await new Response(formatter.stream(input)).text();
+}

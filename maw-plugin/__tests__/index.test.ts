@@ -29,6 +29,7 @@ describe('maw arra plugin', () => {
   test('help lists the full compact MCP surface', async () => {
     expect(listSubcommands()).toEqual([
       'concepts',
+      'export',
       'feed',
       'frontend',
       'handoff',
@@ -145,6 +146,7 @@ describe('maw arra plugin', () => {
       [['feed'], 'GET', '/api/feed'],
       [['menu'], 'GET', '/api/menu'],
       [['vector'], 'GET', '/api/vector/config'],
+      [['export', '--format', 'csv'], 'GET', '/api/vector/export?format=csv'],
       [['vector_status'], 'GET', '/api/vector/index/status'],
       [['vector_models'], 'GET', '/api/vector/index/models'],
       [['health'], 'GET', '/api/health'],
@@ -207,6 +209,12 @@ describe('maw arra plugin', () => {
       if (oldToken === undefined) delete process.env.ARRA_API_TOKEN;
       else process.env.ARRA_API_TOKEN = oldToken;
     }
+  });
+
+  test('passes CSV export output through unchanged', async () => {
+    const exported = await runArra(['export', '--format', 'csv'], async () => 'id,document\n1,oracle\n');
+    expect(exported.ok).toBe(true);
+    expect(exported.output).toBe('id,document\n1,oracle\n');
   });
 
   test('formats compact health and search output', async () => {
