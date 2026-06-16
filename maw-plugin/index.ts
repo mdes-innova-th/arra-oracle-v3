@@ -24,7 +24,7 @@ export const command = { name: 'arra', description: 'ARRA Oracle HTTP helper —
 export function resolveBaseUrl(env: Record<string, string | undefined> = process.env): string {
   const explicit = env.ORACLE_API?.trim();
   if (explicit) return normalizeApiBase(explicit);
-  return normalizeApiBase(`http://localhost:${resolveServePort(env, DEFAULT_ORACLE_API.split(':').at(-1) ?? '47778')}`);
+  return normalizeApiBase(`http://localhost:${resolveServePort(env, new URL(DEFAULT_ORACLE_API).port)}`);
 }
 
 export function resolveFrontendUrl(env: Record<string, string | undefined> = process.env): string {
