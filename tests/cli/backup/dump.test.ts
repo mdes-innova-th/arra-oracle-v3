@@ -5,13 +5,6 @@ import { basename, join } from 'node:path';
 
 const savedDataDir = process.env.ORACLE_DATA_DIR;
 const savedRepoRoot = process.env.ORACLE_REPO_ROOT;
-const savedDbPath = process.env.ORACLE_DB_PATH;
-
-function restoreDbPath() {
-  return savedDbPath
-    ?? join(savedDataDir ?? join(process.env.HOME!, '.arra-oracle-v2'), 'oracle.db');
-}
-
 const importRoot = mkdtempSync(join(tmpdir(), 'arra-backup-import-'));
 process.env.ORACLE_DATA_DIR = join(importRoot, 'data');
 process.env.ORACLE_REPO_ROOT = importRoot;
@@ -34,7 +27,7 @@ afterAll(() => {
   else process.env.ORACLE_DATA_DIR = savedDataDir;
   if (savedRepoRoot === undefined) delete process.env.ORACLE_REPO_ROOT;
   else process.env.ORACLE_REPO_ROOT = savedRepoRoot;
-  resetDefaultDatabaseForTests(restoreDbPath());
+  resetDefaultDatabaseForTests(':memory:');
   rmSync(importRoot, { recursive: true, force: true });
 });
 

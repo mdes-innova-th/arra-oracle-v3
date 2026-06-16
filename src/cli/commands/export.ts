@@ -1,14 +1,6 @@
 import { mkdir, writeFile as nodeWriteFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import {
-  buildMarkdownExportPayload,
-  buildVaultJsonExport,
-  buildVectorExportPayload,
-  exportCommand as legacyExportCommand,
-} from "./export-legacy.ts";
 import { CLI_VERSION } from "../help.ts";
-
-export { buildMarkdownExportPayload, buildVaultJsonExport, buildVectorExportPayload };
 
 const RUN_PATH = "/api/v1/export/app/run";
 const FORMATS = new Set(["markdown", "json", "jsonl", "csv"]);
@@ -222,7 +214,10 @@ export async function exportCommand(args: string[]): Promise<number> {
     printHelp();
     return 0;
   }
-  if (!hasNewExportFlag(args)) return legacyExportCommand(args);
+  if (!hasNewExportFlag(args)) {
+    const { exportCommand: legacyExportCommand } = await import("./export-legacy.ts");
+    return legacyExportCommand(args);
+  }
 
   try {
     process.stdout.write(`${await runRemoteExportCommand(args)}\n`);
