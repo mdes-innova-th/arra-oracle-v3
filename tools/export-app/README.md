@@ -77,6 +77,8 @@ Use `--dry-run` to print collection, row, relationship, and document counts
 without creating files. It is a safe preflight before long-running exports.
 Use `--collection <name>` repeatedly or `--collections a,b` to write only
 selected Drizzle collections when testing a narrow migration path.
+Use `--verify <dir>` after export to re-check `manifest.json` byte counts and
+SHA-256 checksums before migration or restore work.
 
 The batch output includes:
 
