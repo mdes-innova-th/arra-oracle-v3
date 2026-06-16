@@ -17,6 +17,13 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Cache bun deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -58,3 +65,19 @@ jobs:
 
       - name: Run scoped integration tests
         run: bun test --isolate src/integration/
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            frontend/src-tauri/target
+          key: rust-${{ hashFiles('frontend/src-tauri/Cargo.lock') }}
+          restore-keys: rust-
+
+      - name: Cargo check (Tauri)
+        run: cd frontend/src-tauri && cargo check
