@@ -17,8 +17,16 @@ export type ExportFormatter = ((dump: EmbeddingDump) => ReadableStream<Uint8Arra
   contentType?: string;
   mimeType?: string;
   extension?: string;
+  label?: string;
   stream?: (input: ExportFormatterInput) => ReadableStream<Uint8Array>;
 };
+
+export interface ExportFormatInfo {
+  format: string;
+  label: string;
+  mimeType: string;
+  extension: string;
+}
 
 export const VECTOR_EXPORT_COLUMNS = ['id', 'document', 'type', 'source_file', 'concepts'];
 const encoder = new TextEncoder();
@@ -113,7 +121,15 @@ function normalizeName(name: string, strict = true): string {
   return normalized;
 }
 
-function defineFormatter(name: string, meta: { contentType: string; extension: string }, stream: ExportFormatter['stream']): ExportFormatter {
+function fallbackLabel(format: string): string {
+  return format.split('-').map((part) => part.toUpperCase()).join(' ');
+}
+
+function defineFormatter(
+  name: string,
+  meta: { contentType: string; extension: string; label: string },
+  stream: ExportFormatter['stream'],
+): ExportFormatter {
   const formatter = ((dump: EmbeddingDump) => stream!({ rows: rowsFromEmbeddingDump(dump), columns: VECTOR_EXPORT_COLUMNS, dump })) as ExportFormatter;
   return Object.assign(formatter, { format: name, mimeType: meta.contentType, ...meta, stream });
 }
@@ -125,6 +141,7 @@ export function rowsFromEmbeddingDump(dump: EmbeddingDump): ExportRow[] {
 export const jsonExportFormatter = defineFormatter('json', {
   contentType: 'application/json; charset=utf-8',
   extension: 'json',
+  label: 'JSON',
 }, (input) => {
   const spacing = input.pretty ? 2 : undefined;
   return streamText(`${JSON.stringify(jsonValue(input), null, spacing)}\n`);
@@ -133,6 +150,7 @@ export const jsonExportFormatter = defineFormatter('json', {
 export const jsonlExportFormatter = defineFormatter('jsonl', {
   contentType: 'application/x-ndjson; charset=utf-8',
   extension: 'jsonl',
+  label: 'JSONL',
 }, (input) => {
   const lines = jsonlValues(input).map((value) => JSON.stringify(value));
   return streamText(lines.length ? `${lines.join('\n')}\n` : '');
@@ -141,6 +159,7 @@ export const jsonlExportFormatter = defineFormatter('jsonl', {
 export const csvExportFormatter = defineFormatter('csv', {
   contentType: 'text/csv; charset=utf-8',
   extension: 'csv',
+  label: 'CSV',
 }, (input) => {
   const rows = input.rows ?? [];
   const columns = columnsFor(rows, input.columns);
@@ -152,6 +171,7 @@ export const csvExportFormatter = defineFormatter('csv', {
 export const markdownExportFormatter = defineFormatter('markdown', {
   contentType: 'text/markdown; charset=utf-8',
   extension: 'md',
+  label: 'Markdown',
 }, (input) => streamText(markdownBlocks(input.rows ?? [])));
 
 export const exportFormatters: Record<string, ExportFormatter> = {};
@@ -175,6 +195,22 @@ export function listExportFormats(): string[] {
 
 export function supportedExportFormats(): string[] {
   return listExportFormats();
+}
+
+export function exportFormatInfo(name: string): ExportFormatInfo | undefined {
+  const format = normalizeName(name, false);
+  const formatter = getExportFormat(format);
+  if (!formatter) return undefined;
+  return {
+    format,
+    label: formatter.label ?? fallbackLabel(format),
+    mimeType: formatter.contentType ?? formatter.mimeType ?? 'application/octet-stream',
+    extension: formatter.extension ?? format,
+  };
+}
+
+export function availableExportFormats(): ExportFormatInfo[] {
+  return listExportFormats().flatMap((format) => exportFormatInfo(format) ?? []);
 }
 
 export async function exportText(formatter: ExportFormatter, input: ExportFormatterInput): Promise<string> {
