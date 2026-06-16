@@ -1,5 +1,5 @@
 /**
- * GET /api/vector/export — stream a vector collection as JSON or CSV.
+ * GET /api/vector/export — stream a vector collection as JSON, JSONL, or CSV.
  */
 
 import { Elysia, t } from 'elysia';
@@ -71,7 +71,7 @@ export function createVectorExportEndpoint(deps: VectorExportDeps = {}) {
       detail: {
         tags: ['vector'],
         menu: { group: 'tools', order: 57 },
-        summary: 'Export a vector collection as JSON or CSV',
+        summary: 'Export a vector collection as JSON, JSONL, or CSV',
       },
     },
   );

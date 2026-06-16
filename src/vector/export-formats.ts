@@ -1,7 +1,7 @@
 import type { VectorStoreAdapter } from './types.ts';
 
 export type EmbeddingDump = Awaited<ReturnType<NonNullable<VectorStoreAdapter['getAllEmbeddings']>>>;
-export type ExportFormatName = 'json' | 'csv';
+export type ExportFormatName = 'json' | 'jsonl' | 'csv';
 export type ExportRow = Record<string, unknown>;
 
 export interface ExportFormatterInput {
@@ -69,6 +69,12 @@ function jsonValue(input: ExportFormatterInput): unknown {
   return input.rows ?? [];
 }
 
+function jsonlValues(input: ExportFormatterInput): unknown[] {
+  if (input.rows) return input.rows;
+  if (Array.isArray(input.value)) return input.value;
+  return 'value' in input ? [input.value] : [];
+}
+
 function rowAt(dump: EmbeddingDump, index: number): ExportRow {
   const metadata = dump.metadatas[index] ?? {};
   const meta = metadata && typeof metadata === 'object' ? metadata as Record<string, unknown> : {};
@@ -95,6 +101,16 @@ export const jsonExportFormatter: ExportFormatter = {
   },
 };
 
+export const jsonlExportFormatter: ExportFormatter = {
+  format: 'jsonl',
+  mimeType: 'application/x-ndjson; charset=utf-8',
+  extension: 'jsonl',
+  stream(input) {
+    const lines = jsonlValues(input).map((value) => JSON.stringify(value));
+    return streamText(lines.length ? `${lines.join('\n')}\n` : '');
+  },
+};
+
 export const csvExportFormatter: ExportFormatter = {
   format: 'csv',
   mimeType: 'text/csv; charset=utf-8',
@@ -110,6 +126,7 @@ export const csvExportFormatter: ExportFormatter = {
 
 export const exportFormatters: Record<ExportFormatName, ExportFormatter> = {
   json: jsonExportFormatter,
+  jsonl: jsonlExportFormatter,
   csv: csvExportFormatter,
 };
 
