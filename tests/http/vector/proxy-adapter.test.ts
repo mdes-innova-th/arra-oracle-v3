@@ -14,6 +14,9 @@ const server = Bun.serve({
     const body = request.method === 'GET' || request.method === 'DELETE' ? undefined : await request.json();
     requests.push({ method: request.method, path: url.pathname, body });
     if (url.pathname === '/proxy/health') return Response.json({ status: 'ok', name: 'proxy-test', version: '1' });
+    if (url.pathname === '/legacy/health') {
+      return Response.json({ status: 'ok', name: 'legacy-proxy', version: '0.1', protocol: 'legacy-proxy' });
+    }
     if (url.pathname === '/proxy/vectors/stats') return Response.json({ count: 2, name: 'remote_proxy_docs' });
     if (url.pathname === '/proxy/vectors/add') return Response.json({ success: true });
     if (url.pathname === '/proxy/vectors/query') return Response.json({
@@ -55,6 +58,12 @@ test('ProxyVectorAdapter speaks vector proxy protocol under endpoint path prefix
 
 test('vectorServiceUrl preserves path prefixes', () => {
   expect(vectorServiceUrl('http://example.test/base/', '/health')).toBe('http://example.test/base/health');
+});
+
+test('ProxyVectorAdapter rejects incompatible proxy protocol versions', async () => {
+  const adapter = new ProxyVectorAdapter('proxy_docs', `${server.url}legacy`);
+
+  await expect(adapter.connect()).rejects.toThrow('Unsupported proxy protocol legacy-proxy');
 });
 
 test('factory registers proxy vector stores', async () => {

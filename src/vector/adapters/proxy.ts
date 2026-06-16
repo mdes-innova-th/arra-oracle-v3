@@ -15,6 +15,7 @@ import type {
 } from '../types.ts';
 import { currentTenantId, TENANT_HEADER } from '../../middleware/tenant.ts';
 import {
+  VECTOR_PROXY_PROTOCOL_VERSION,
   VECTOR_PROXY_ROUTES,
   buildVectorProxyUrl,
   isHealthyVectorProxy,
@@ -45,6 +46,9 @@ export class ProxyVectorAdapter implements VectorStoreAdapter {
     const health = await this.health();
     if (!isHealthyVectorProxy(health)) {
       throw new Error('Proxy vector service unavailable');
+    }
+    if (health.protocol && health.protocol !== VECTOR_PROXY_PROTOCOL_VERSION) {
+      throw new Error(`Unsupported proxy protocol ${health.protocol}`);
     }
   }
 
