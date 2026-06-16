@@ -9,6 +9,7 @@ import { DB_PATH } from '../config.ts';
 import { isVectorSectionEnabled } from './config.ts';
 import { localNativeVectorDisabledReason, localVectorIndexMissingReason } from './cpu-capabilities.ts';
 import { currentTenantId } from '../middleware/tenant.ts';
+import type { HealthStatus, RegisteredVectorService } from './service-registry.ts';
 
 export type VectorBackendEngine = {
   key: string;
@@ -37,6 +38,12 @@ export type VectorStorageHealth = {
   detail?: string;
 };
 
+export type VectorServiceHealth = RegisteredVectorService & {
+  status: 'green' | 'yellow' | 'red';
+  available: boolean;
+  health: HealthStatus;
+};
+
 export type VectorFreshness = {
   status: 'fresh' | 'empty' | 'stale';
   totalIndexed: number;
@@ -52,6 +59,7 @@ export type VectorBackendHealth = {
   checked_at: string;
   providers?: VectorProviderHealth[];
   freshness?: VectorFreshness;
+  services?: VectorServiceHealth[];
   storage?: VectorStorageHealth[];
 };
 
@@ -59,6 +67,7 @@ export type VectorBackendHealth = {
 export function attachVectorDashboardHealth(
   health: VectorBackendHealth,
   providers: Array<{ type: string; available: boolean; error?: string; detail?: string }> = [],
+  services: VectorServiceHealth[] = [],
 ): VectorBackendHealth {
   return {
     ...health,
@@ -70,8 +79,24 @@ export function attachVectorDashboardHealth(
       detail: provider.error ?? provider.detail,
     })),
     freshness: health.freshness ?? buildVectorFreshness(health.engines),
+    services: health.services ?? services,
     storage: health.storage ?? buildVectorStorageHealth(health.engines),
   };
+}
+
+export function buildVectorServiceHealth(
+  services: RegisteredVectorService[],
+  health: Map<string, HealthStatus>,
+): VectorServiceHealth[] {
+  return services.map((service) => {
+    const serviceHealth = health.get(service.name) ?? { status: 'unknown' as const, checkedAt: new Date().toISOString() };
+    return {
+      ...service,
+      available: serviceHealth.status === 'up',
+      status: serviceHealth.status === 'up' ? 'green' : serviceHealth.status === 'down' ? 'red' : 'yellow',
+      health: serviceHealth,
+    };
+  });
 }
 
 export function buildVectorStorageHealth(
