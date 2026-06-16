@@ -35,6 +35,16 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Rust deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            frontend/src-tauri/target
+          key: rust-${{ hashFiles('frontend/src-tauri/Cargo.lock') }}
+          restore-keys: rust-
+
       - name: Install Tauri Linux dependencies
         run: |
           sudo apt-get update
@@ -45,7 +55,7 @@ jobs:
             librsvg2-dev \
             patchelf
 
-      - name: Check Tauri shell
+      - name: Cargo check (Tauri)
         run: cd frontend/src-tauri && cargo check
 
       - name: Run scoped unit tests
@@ -65,19 +75,3 @@ jobs:
 
       - name: Run scoped integration tests
         run: bun test --isolate src/integration/
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust deps
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            frontend/src-tauri/target
-          key: rust-${{ hashFiles('frontend/src-tauri/Cargo.lock') }}
-          restore-keys: rust-
-
-      - name: Cargo check (Tauri)
-        run: cd frontend/src-tauri && cargo check
