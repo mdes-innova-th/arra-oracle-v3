@@ -8,6 +8,9 @@ Use this page as the one-hop map for the 2026-06-06/07 alpha docs wave.
 | --- | --- | --- |
 | [INSTALL.md](./INSTALL.md) | Easy install through global Bun, plugins, Docker, or Docker MCP Toolkit | `bun add -g github:...#vX.Y.Z`, `arra plugin install`, GHCR |
 | [QUICKSTART.md](./QUICKSTART.md) | Five-minute first run after install | `arra-oracle-v3 serve`, `arra health`, `arra learn`, MCP config |
+| [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | Diagnose install, MCP, HTTP, vector, plugin, and Docker issues | health checks, auth, tenants, logs |
+| [FAQ.md](./FAQ.md) | Answer common operator and contributor questions | install path, binaries, data, vectors, tenants |
+| [API-REFERENCE-INDEX.md](./API-REFERENCE-INDEX.md) | Choose the right API reference | `/api/docs`, `openapi.json`, route family map |
 | [DEPLOY-DIGITALOCEAN.md](./DEPLOY-DIGITALOCEAN.md) | Deploy a small public Arra HTTP node on DigitalOcean | `doctl`, firewall allowlist, `ARRA_API_TOKEN`, seed, teardown |
 | [FEDERATION.md](./FEDERATION.md) | Pair and secure Arra peers | `/info`, `/api/identity`, `/api/peer/feed`, `/api/peer/search`, TOFU pins |
 | [HUGINN-MUNINN.md](./HUGINN-MUNINN.md) | Understand the capture/recall naming split | Muninn recall, Huginn capture, no `huginn_*` aliases |
@@ -23,6 +26,7 @@ Use this page as the one-hop map for the 2026-06-06/07 alpha docs wave.
 
 | Feature | Main doc | Common knobs / paths |
 | --- | --- | --- |
+| API references | [API-REFERENCE-INDEX.md](./API-REFERENCE-INDEX.md) | `/api/docs`, `docs/API.md`, `docs/http-api-reference.md`, `docs/openapi.json` |
 | MCP embedded vs HTTP-proxy | [TONIGHT-SHIPPED.md](./TONIGHT-SHIPPED.md#mcp-modes-embedded-vs-http-proxy) | `ORACLE_HTTP_URL`, `ORACLE_API`, `NEO_ARRA_API` |
 | MCP tool/plugin toggles | [TONIGHT-SHIPPED.md](./TONIGHT-SHIPPED.md#mcp-tool-plugin-toggles) | `arra.config.json`, `plugins.json`, `$ORACLE_DATA_DIR/config.json` |
 | Operator CLI targets | [INSTALL.md](./INSTALL.md#first-server) | `arra config add`, `arra config use`, `ORACLE_API`, `--at` |
