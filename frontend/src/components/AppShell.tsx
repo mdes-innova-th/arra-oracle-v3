@@ -5,8 +5,8 @@ import { NavSidebar, type NavItem } from './NavSidebar';
 import { routeMeta } from '../routeMeta';
 import { PageChrome } from './PageChrome';
 import { StatCard } from './StatCard';
+import { CommandPalette } from './CommandPalette';
 import { ThemeToggle } from './ThemeToggle';
-import { TauriBadge } from './TauriBadge';
 import { GlobalSearch } from './GlobalSearch';
 import type { MetricsSnapshot } from '../../../src/server/types';
 
@@ -90,12 +90,11 @@ export function AppShell({
           <header className="flex flex-col gap-5 rounded-3xl border border-slate-200 bg-white/85 p-4 shadow-2xl shadow-slate-200/60 backdrop-blur sm:p-6 lg:flex-row lg:items-end lg:justify-between dark:border-white/10 dark:bg-slate-950/70 dark:shadow-black/30">
             <PageChrome meta={meta} />
             <div className="grid w-full gap-3 lg:max-w-md">
+              <CommandPalette onRefresh={onRefresh} />
               <GlobalSearch />
               <div className="grid gap-3 sm:flex sm:items-center sm:justify-end">
-                <TauriBadge connected={!error} />
                 <ThemeToggle />
                 <button
-                  aria-label="Refresh menu and plugin dashboard data"
                   className="focus-ring rounded-xl bg-teal-300 px-5 py-3 font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={loading}
                   type="button"
