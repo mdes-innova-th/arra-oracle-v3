@@ -9,7 +9,7 @@ const root = mkdtempSync(join(tmpdir(), 'arra-export-verify-'));
 const dbPath = join(root, 'oracle.db');
 const outputDir = join(root, 'bundle');
 
-const dbModule = await import('../../db/index.ts');
+const dbModule = await import('../../../src/db/index.ts');
 const exporterModule = await import('../../../tools/export-app/exporter.ts');
 const verifyModule = await import('../../../tools/export-app/verify.ts');
 
