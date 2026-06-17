@@ -4,9 +4,10 @@ import { createMemoryFanoutEndpoint } from './fanout.ts';
 import { memoryStore, parseValidTime, type MemoryInput, type MemoryRecord, type MemoryStore } from './store.ts';
 import { memoryVectorIndex, type MemoryVectorHit, type MemoryVectorIndex } from './vector.ts';
 import { buildMorningTape } from './morning-tape.ts';
-import { MEMORY_CONFIDENCE_STRATEGY, memoryConfidence } from './confidence.ts';
+import { MEMORY_CONFIDENCE_STRATEGY } from './confidence.ts';
 import { formatCloseoutMemory, type MemoryCloseoutInput } from './closeout.ts';
 import { currentTenantId } from '../../middleware/tenant.ts';
+import { rankMemories } from './rank.ts';
 
 export function createMemoryRoutes(
   store: MemoryStore = memoryStore,
@@ -54,8 +55,9 @@ export function createMemoryRoutes(
     .get('/memory/recall', ({ query, set }) => {
       const limit = parseMemoryLimit(query.limit);
       try {
-        const items = store.recall(query.q ?? '', limit, query.asOf);
-        return { query: query.q ?? '', asOf: isoAsOf(query.asOf), total: items.length, confidence: MEMORY_CONFIDENCE_STRATEGY, items: items.map(withKeywordConfidence) };
+        const candidates = store.recall(query.q ?? '', limit, query.asOf);
+        const items = rankMemories(candidates, { mode: 'keyword', asOf: query.asOf });
+        return { query: query.q ?? '', asOf: isoAsOf(query.asOf), total: items.length, confidence: MEMORY_CONFIDENCE_STRATEGY, items };
       } catch (error) {
         return invalidAsOf(set, error);
       }
@@ -73,7 +75,9 @@ export function createMemoryRoutes(
         isoAsOf(query.asOf);
         const hits = await vectorIndex.search(query.q, limit);
         const records = store.getByIds(hits.map((hit) => hit.memoryId), query.asOf);
-        const results = mergeHits(hits, records);
+        const merged = mergeHits(hits, records);
+        const scores = new Map(hits.map((hit) => [hit.memoryId, hit.score]));
+        const results = rankMemories(merged, { mode: 'semantic', asOf: query.asOf, score: (memory) => scores.get(memory.id) }).slice(0, limit);
         return { success: true, query: query.q, asOf: isoAsOf(query.asOf), total: results.length, confidence: MEMORY_CONFIDENCE_STRATEGY, results };
       } catch (error) {
         const message = error instanceof Error ? error.message : 'memory vector search failed';
@@ -112,7 +116,6 @@ function mergeHits(hits: MemoryVectorHit[], records: MemoryRecord[]) {
       score: hit.score,
       distance: hit.distance,
       vectorId: hit.vectorId,
-      confidence: memoryConfidence(memory, { mode: 'semantic', semanticScore: hit.score }),
     }];
   });
 }
@@ -120,10 +123,6 @@ function mergeHits(hits: MemoryVectorHit[], records: MemoryRecord[]) {
 function hitTenant(hit: MemoryVectorHit): string | undefined {
   const value = hit.metadata.tenant_id ?? hit.metadata.tenantId ?? hit.metadata.tenant;
   return typeof value === 'string' ? value : undefined;
-}
-
-function withKeywordConfidence(memory: MemoryRecord) {
-  return { ...memory, confidence: memoryConfidence(memory, { mode: 'keyword' }) };
 }
 
 function memoryForHit(hit: MemoryVectorHit, record?: MemoryRecord): MemoryRecord {
