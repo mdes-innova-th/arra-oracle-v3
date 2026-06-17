@@ -26,6 +26,7 @@ test('GET /api/health includes separate vector-server health when configured', a
 
   expect(res.status).toBe(200);
   expect(body.status).toBe('ok');
+  expect(body.vectorAvailable).toBe(true);
   expect(body.vectorServer).toMatchObject({
     configured: true,
     status: 'ok',
@@ -46,6 +47,7 @@ test('GET /api/health degrades when configured vector-server is down', async () 
   const body = await res.json() as Record<string, any>;
 
   expect(body.status).toBe('degraded');
+  expect(body.vectorAvailable).toBe(false);
   expect(body.vectorServer).toMatchObject({ status: 'down', error: 'unreachable' });
 });
 
