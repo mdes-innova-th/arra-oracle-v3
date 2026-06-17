@@ -99,6 +99,11 @@ export interface HealthResponse {
   mcpToolCount?: number;
   pluginCount?: number;
   draining?: boolean;
+  healthStatus?: RuntimeStatus | 'degraded' | 'starting' | 'down' | string;
+  state?: string;
+  uptimeSecondsBreakdown?: { seconds: number };
+  dbCheck?: { status?: string; path?: string };
+  subsystems?: Record<string, { status?: string; data?: Record<string, unknown> }>;
   uptime?: { seconds: number };
   db?: { status: 'ok'; path: string } | { status: 'down'; error: string; path: string };
   vector?: VectorHealthResponse;
