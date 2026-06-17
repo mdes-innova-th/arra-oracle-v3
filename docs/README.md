@@ -8,7 +8,7 @@ is linked here; keep new docs in the right section when adding files.
 
 - **Deploy**: start with [architecture/deploy-topologies.md](./architecture/deploy-topologies.md), then pick [deploy-production.md](./deploy-production.md), [deploy-cloudflare.md](./deploy-cloudflare.md), [deploy-cloudflare-mcp.md](./deploy-cloudflare-mcp.md), [deploy-vercel.md](./deploy-vercel.md), or [DEPLOY-DIGITALOCEAN.md](./DEPLOY-DIGITALOCEAN.md).
 - **Architecture**: read [architecture.md](./architecture.md), [architecture/modular-backend.md](./architecture/modular-backend.md), [architecture/https-localhost-vector-flow.md](./architecture/https-localhost-vector-flow.md), and [architecture/modular-backend-current-state.md](./architecture/modular-backend-current-state.md).
-- **Memory/search**: read [architecture/memory-layer.md](./architecture/memory-layer.md), [architecture/memory-pipeline.md](./architecture/memory-pipeline.md), [HUGINN-MUNINN.md](./HUGINN-MUNINN.md), and [vector-runtime.md](./vector-runtime.md).
+- **Memory/search**: run [memory-demo.md](./memory-demo.md), then read [architecture/memory-layer.md](./architecture/memory-layer.md), [architecture/memory-pipeline.md](./architecture/memory-pipeline.md), [HUGINN-MUNINN.md](./HUGINN-MUNINN.md), and [vector-runtime.md](./vector-runtime.md).
 - **MCP**: read [mcp-tools.md](./mcp-tools.md), [architecture/mcp-remote-transport.md](./architecture/mcp-remote-transport.md), [MCP-FROM-OPENAPI.md](./MCP-FROM-OPENAPI.md), and [deploy-cloudflare-mcp.md](./deploy-cloudflare-mcp.md).
 
 ## Start here
@@ -28,6 +28,7 @@ is linked here; keep new docs in the right section when adding files.
 | [architecture/https-localhost-vector-flow.md](./architecture/https-localhost-vector-flow.md) | Sequence diagram for hosted HTTPS Studio calling a localhost Oracle backend and local vector flow. | #2312, localhost, PNA, vector |
 | [architecture/memory-layer.md](./architecture/memory-layer.md) | Memory confidence ranking, retrieval reinforcement, supersede, and consolidation contracts from #2251. | memory, confidence, supersede, consolidation |
 | [architecture/memory-pipeline.md](./architecture/memory-pipeline.md) | Diagram the write, FTS, async consolidation, confidence ranking, and bi-temporal read pipeline. | memory pipeline, FTS, asOf, ranking |
+| [memory-demo.md](./memory-demo.md) | Run the #2251 memory walkthrough for provenance, confidence, heat, valid-time, and consolidation. | memory demo, provenance, confidence, heat |
 | [architecture/cloudflared-origin-contract.md](./architecture/cloudflared-origin-contract.md) | `ORACLE_ORIGIN_URL` secret and Cloudflare Tunnel origin contract for Workers. | Cloudflare Tunnel, origin URL, Workers secrets |
 | [architecture/proxy-terminology.md](./architecture/proxy-terminology.md) | Disambiguate request-tier, storage-tier, and manifest passthrough proxy meanings. | proxy vocabulary, external-only adapters |
 | [PLUGIN-GUIDE.md](./PLUGIN-GUIDE.md) | Author installable Oracle plugins | `plugin.json`, CLI/MCP/menu/API surfaces |
