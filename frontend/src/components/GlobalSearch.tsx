@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { globalSearchSurfaceLabel, searchAllSurfaces, type GlobalSearchResult } from '../global-search';
 import { Spinner } from './AsyncState';
+import { StateNotice } from './StateNotice';
 
 type SearchState = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -23,9 +24,11 @@ function ResultAnchor({ result }: { result: GlobalSearchResult }) {
 }
 
 export function GlobalSearchResults({ results }: { results: GlobalSearchResult[] }) {
-  if (!results.length) return <p className="rounded-xl border border-dashed border-border p-3 text-sm text-text-muted dark:border-border dark:text-text-muted">No matching menu, plugin, or MCP tool surfaces.</p>;
+  if (!results.length) {
+    return <StateNotice tone="warning" title="No matching surfaces." detail="Try a menu label, plugin name, MCP tool, route path, or action keyword." />;
+  }
   return (
-    <ul className="grid gap-2">
+    <ul className="grid gap-2" aria-label="Global search results">
       {results.map((result) => <li key={result.id}><ResultAnchor result={result} /></li>)}
     </ul>
   );
@@ -84,7 +87,7 @@ export function GlobalSearch() {
         </button>
       </form>
       <div id={resultsId} className="grid gap-2" role="region" aria-busy={state === 'loading'} aria-live="polite" aria-label="Global search results">
-        {state === 'error' ? <p className="rounded-xl border border-err-border bg-err-bg p-3 text-sm text-err-text">{error}</p> : null}
+        {state === 'error' ? <StateNotice tone="error" title="Global search failed." detail={error} /> : null}
         {state === 'ready' ? (
           <>
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-text-muted dark:text-text-muted">
