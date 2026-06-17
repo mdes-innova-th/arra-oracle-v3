@@ -26,7 +26,7 @@ curl -sf "${AUTH[@]}" "$BASE/api/v1/mcp/tools"
 
 ## Route inventory by family
 
-Base `createApp()` with no dynamic plugins/gateway config currently exposes 186 routes, 182 under `/api`; dynamic plugin and gateway routes may add more at runtime. These families match the mounted source modules.
+Base `createApp()` with no dynamic plugins/gateway config currently exposes 187 routes, 182 under `/api`; dynamic plugin and gateway routes may add more at runtime. These families match the mounted source modules.
 
 | Family | Methods and paths |
 | --- | --- |
@@ -75,7 +75,18 @@ curl -s "${AUTH[@]}" "$BASE/api/v1/vector/health"
 ```
 
 ```json
-{ "status": "ok", "server": "arra-oracle-v3", "db": "connected", "vectorStatus": "ok", "mcp": { "toolCount": 28 } }
+{
+  "status": "ok",
+  "healthStatus": "healthy",
+  "server": "arra-oracle-v3",
+  "subsystems": {
+    "db": { "status": "healthy" },
+    "fts": { "status": "healthy" },
+    "vector": { "status": "healthy" },
+    "plugin": { "status": "healthy" }
+  },
+  "mcp": { "toolCount": 28 }
+}
 ```
 
 ```json
