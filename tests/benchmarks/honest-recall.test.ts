@@ -67,16 +67,19 @@ describe('honest recall benchmark harness', () => {
     expect(existsSync(outFile)).toBe(false);
   });
 
-  test('writes provenance JSON and separates Recall@k from Answer-Accuracy', async () => {
+  test('scores answerable recall separately from rejection metrics', async () => {
     const outFile = tempFile('report.json');
-    const searcher: Searcher = async ({ query }) => query === 'alpha'
-      ? [{ id: 'noise' }, { id: 'doc-a' }]
-      : [{ id: 'noise' }, { id: 'other' }];
+    const searcher: Searcher = async ({ query }) => {
+      if (query === 'alpha') return [{ id: 'noise' }, { id: 'doc-a' }];
+      if (query === 'unknown') return [];
+      return [{ id: 'noise' }, { id: 'other' }];
+    };
 
     const report = await runHonestRecallBenchmark({
       cases: parseDatasetText([
         JSON.stringify({ id: 'q1', query: 'alpha', expected_ids: ['doc-a'], answer: 'A' }),
         JSON.stringify({ id: 'q2', query: 'beta', relevant_ids: ['doc-b'], answer: 'B' }),
+        JSON.stringify({ id: 'q3', query: 'unknown', expectedIds: [] }),
       ].join('\n')),
       corpus: { label: 'oracle-test', size: 10 },
       topK: 3,
@@ -89,11 +92,12 @@ describe('honest recall benchmark harness', () => {
     expect(report.provenance).toMatchObject({ mode: 'hybrid', model: 'multi', top_k: 3, metric: 'Recall@k', metric_family: 'Recall@k', 'git-sha': 'abc123' });
     expect(report.provenance.stack).toEqual(['bge-m3', 'nomic', 'qwen3', 'FTS5']);
     expect(report.metrics[0]).toMatchObject({ metric: 'Recall@k', metric_family: 'Recall@k', label: 'Recall@3', value: 0.5, hits: 1, total_queries: 2 });
-    expect(report.metrics[1]).toMatchObject({ metric: 'Answer-Accuracy', metric_family: 'Answer-Accuracy', status: 'not-measured' });
-    expect(report.metrics.map((item) => item.metric)).toEqual(['Recall@k', 'Answer-Accuracy']);
-    expect('value' in report.metrics[1]).toBe(false);
-    expect(report.cases.map((item) => item.metric)).toEqual(['Recall@k', 'Recall@k']);
-    expect(report.cases.map((item) => item.metric_family)).toEqual(['Recall@k', 'Recall@k']);
+    expect(report.metrics[1]).toMatchObject({ metric: 'Reject-Recall', metric_family: 'Reject', value: 1, correct_rejections: 1, total_unanswerable: 1 });
+    expect(report.metrics[2]).toMatchObject({ metric: 'Reject-Precision', metric_family: 'Reject', value: 1, correct_rejections: 1, total_rejections: 1 });
+    expect(report.metrics[3]).toMatchObject({ metric: 'Answer-Accuracy', metric_family: 'Answer-Accuracy', status: 'not-measured' });
+    expect(report.metrics.map((item) => item.metric)).toEqual(['Recall@k', 'Reject-Recall', 'Reject-Precision', 'Answer-Accuracy']);
+    expect('value' in report.metrics[3]).toBe(false);
+    expect(report.cases.map((item) => item.metric_family)).toEqual(['Recall@k', 'Recall@k', 'Reject']);
     expect(JSON.parse(readFileSync(outFile, 'utf8')).provenance.corpus).toEqual({ label: 'oracle-test', size: 10 });
   });
 
@@ -138,10 +142,11 @@ describe('honest recall benchmark harness', () => {
     });
     expect(report.provenance.stack).toEqual(['bge-m3', 'nomic', 'qwen3', 'FTS5']);
     expect(report.provenance.corpus).toEqual({ label: 'public-recall-dataset-v2', size: 48 });
-    expect(report.metrics[0]).toMatchObject({ metric: 'Recall@k', label: 'Recall@3', value: 0.833333, hits: 40, total_queries: 48 });
+    expect(report.metrics[0]).toMatchObject({ metric: 'Recall@k', label: 'Recall@3', value: 0.909091, hits: 40, total_queries: 44 });
+    expect(report.metrics[1]).toMatchObject({ metric: 'Reject-Recall', metric_family: 'Reject', total_unanswerable: 4 });
     expect(report.cases).toHaveLength(48);
     expect(report.cases.find((item: { id: string }) => item.id === 'vector/preflight')).toMatchObject({ hit: false });
-    expect(report.cases.find((item: { id: string }) => item.id === 'edge/no-match-weather')).toMatchObject({ expected_ids: [], hit: false });
+    expect(report.cases.find((item: { id: string }) => item.id === 'edge/no-match-weather')).toMatchObject({ metric_family: 'Reject', expected_ids: [], hit: false });
   });
 
   test('HTTP searcher calls our hybrid multi-model search surface', async () => {

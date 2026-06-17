@@ -1,22 +1,18 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-
-export type MetricName = 'Recall@k' | 'Answer-Accuracy';
+export type MetricName = 'Recall@k' | 'Reject-Recall' | 'Reject-Precision' | 'Answer-Accuracy';
 export type BenchmarkMode = 'hybrid' | 'fts' | 'vector';
 type RecallMetricLabel = `Recall@${number}`;
-
 export type BenchmarkCase = { id: string; query: string; expectedIds: string[]; expectedAnswer?: string };
-
 export type SearchHit = { id: string; source_file?: string; sourceFile?: string };
 export type SearchRequest = { query: string; topK: number; mode: BenchmarkMode; model: string };
 export type Searcher = (request: SearchRequest) => Promise<SearchHit[]>;
-
 type CorpusRef = { label: string; size: number };
-
 type MetricRow =
   | { metric: 'Recall@k'; metric_family: 'Recall@k'; label: RecallMetricLabel; value: number; hits: number; total_queries: number; top_k: number }
+  | { metric: 'Reject-Recall'; metric_family: 'Reject'; value: number; correct_rejections: number; total_unanswerable: number }
+  | { metric: 'Reject-Precision'; metric_family: 'Reject'; value: number; correct_rejections: number; total_rejections: number }
   | { metric: 'Answer-Accuracy'; metric_family: 'Answer-Accuracy'; status: 'not-measured'; reason: string };
-
 export type HonestRecallReport = {
   schema: 'arra.honest-recall.v1';
   generated_at: string;
@@ -25,8 +21,8 @@ export type HonestRecallReport = {
     model: string;
     top_k: number;
     corpus: CorpusRef;
-    metric: 'Recall@k';
-    metric_family: 'Recall@k';
+    metric: 'Recall@k' | 'Reject';
+    metric_family: 'Recall@k' | 'Reject';
     'git-sha': string;
     stack: string[];
   };
@@ -34,15 +30,14 @@ export type HonestRecallReport = {
   cases: Array<{
     id: string;
     query: string;
-    metric: 'Recall@k';
-    metric_family: 'Recall@k';
+    metric: 'Recall@k' | 'Reject';
+    metric_family: 'Recall@k' | 'Reject';
     expected_ids: string[];
     retrieved_ids: string[];
     hit: boolean;
     matched_rank: number | null;
   }>;
 };
-
 export function guardTopK(topK: number, corpusSize: number): void {
   if (!Number.isSafeInteger(topK) || topK < 1) throw new Error('top_k must be a positive integer');
   if (!Number.isSafeInteger(corpusSize) || corpusSize < 1) throw new Error('corpus_size must be a positive integer');
@@ -50,13 +45,11 @@ export function guardTopK(topK: number, corpusSize: number): void {
     throw new Error(`Refusing to report Recall@${topK}: top_k (${topK}) must be smaller than corpus_size (${corpusSize}).`);
   }
 }
-
 function validateBenchmarkInputs(cases: BenchmarkCase[], corpus: CorpusRef, topK: number): void {
   if (!cases.length) throw new Error('benchmark dataset has no cases');
   if (!stringField(corpus.label)) throw new Error('benchmark corpus/collection label is required');
   guardTopK(topK, corpus.size);
 }
-
 export function parseDatasetText(text: string): BenchmarkCase[] {
   const trimmed = text.trim();
   if (!trimmed) return [];
@@ -65,7 +58,6 @@ export function parseDatasetText(text: string): BenchmarkCase[] {
     : trimmed.split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line) as unknown);
   return rawItems.map(parseCase);
 }
-
 export function createHttpSearcher(baseUrl: string): Searcher {
   return async ({ query, topK, mode, model }) => {
     const url = new URL('/api/search', baseUrl);
@@ -79,7 +71,6 @@ export function createHttpSearcher(baseUrl: string): Searcher {
     return (Array.isArray(body.results) ? body.results : []).map(toHit).filter(Boolean) as SearchHit[];
   };
 }
-
 export async function runHonestRecallBenchmark(options: {
   cases: BenchmarkCase[];
   corpus: CorpusRef;
@@ -95,26 +86,32 @@ export async function runHonestRecallBenchmark(options: {
   const model = options.model ?? 'multi';
   const recallLabel = recallMetric(options.topK);
   validateBenchmarkInputs(options.cases, options.corpus, options.topK);
-
   const cases: HonestRecallReport['cases'] = [];
   for (const item of options.cases) {
     const hits = (await options.searcher({ query: item.query, topK: options.topK, mode, model })).slice(0, options.topK);
     const expected = new Set(item.expectedIds);
-    const matchedIndex = hits.findIndex((hit) => keysForHit(hit).some((key) => expected.has(key)));
+    const retrievedIds = hits.map((hit) => hit.id);
+    const isReject = item.expectedIds.length === 0;
+    const matchedIndex = isReject ? -1 : hits.findIndex((hit) => keysForHit(hit).some((key) => expected.has(key)));
     cases.push({
       id: item.id,
       query: item.query,
-      metric: 'Recall@k',
-      metric_family: 'Recall@k',
+      metric: isReject ? 'Reject' : 'Recall@k',
+      metric_family: isReject ? 'Reject' : 'Recall@k',
       expected_ids: item.expectedIds,
-      retrieved_ids: hits.map((hit) => hit.id),
-      hit: matchedIndex >= 0,
+      retrieved_ids: retrievedIds,
+      hit: isReject ? retrievedIds.length === 0 : matchedIndex >= 0,
       matched_rank: matchedIndex >= 0 ? matchedIndex + 1 : null,
     });
   }
-
-  const hits = cases.filter((item) => item.hit).length;
-  const recall = roundMetric(hits / cases.length);
+  const answerable = cases.filter((item) => item.metric_family === 'Recall@k');
+  const rejects = cases.filter((item) => item.metric_family === 'Reject');
+  const hits = answerable.filter((item) => item.hit).length;
+  const correctRejections = rejects.filter((item) => item.hit).length;
+  const totalRejections = cases.filter((item) => item.retrieved_ids.length === 0).length;
+  const recall = answerable.length ? roundMetric(hits / answerable.length) : 0;
+  const rejectRecall = rejects.length ? roundMetric(correctRejections / rejects.length) : 0;
+  const rejectPrecision = totalRejections ? roundMetric(correctRejections / totalRejections) : 0;
   const report: HonestRecallReport = {
     schema: 'arra.honest-recall.v1',
     generated_at: options.now ?? new Date().toISOString(),
@@ -129,29 +126,27 @@ export async function runHonestRecallBenchmark(options: {
       stack: mode === 'hybrid' && model === 'multi' ? ['bge-m3', 'nomic', 'qwen3', 'FTS5'] : [model, mode],
     },
     metrics: [
-      { metric: 'Recall@k', metric_family: 'Recall@k', label: recallLabel, value: recall, hits, total_queries: cases.length, top_k: options.topK },
+      { metric: 'Recall@k', metric_family: 'Recall@k', label: recallLabel, value: recall, hits, total_queries: answerable.length, top_k: options.topK },
+      { metric: 'Reject-Recall', metric_family: 'Reject', value: rejectRecall, correct_rejections: correctRejections, total_unanswerable: rejects.length },
+      { metric: 'Reject-Precision', metric_family: 'Reject', value: rejectPrecision, correct_rejections: correctRejections, total_rejections: totalRejections },
       { metric: 'Answer-Accuracy', metric_family: 'Answer-Accuracy', status: 'not-measured', reason: 'Retrieval-only harness: no answer generator or judge was run.' },
     ],
     cases,
   };
-
   if (options.outFile) {
     mkdirSync(dirname(options.outFile), { recursive: true });
     writeFileSync(options.outFile, `${JSON.stringify(report)}\n`);
   }
   return report;
 }
-
 function normalizeMode(value: string): BenchmarkMode {
   if (value === 'hybrid' || value === 'fts' || value === 'vector') return value;
   throw new Error('mode must be one of: hybrid, fts, vector');
 }
-
 function recallMetric(topK: number): RecallMetricLabel {
   guardTopK(topK, Number.MAX_SAFE_INTEGER);
   return `Recall@${topK}`;
 }
-
 function parseCase(raw: unknown, index: number): BenchmarkCase {
   const row = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
   const query = stringField(row.query) || stringField(row.question);
@@ -165,36 +160,29 @@ function parseCase(raw: unknown, index: number): BenchmarkCase {
     expectedAnswer: stringField(row.answer ?? row.expected_answer),
   };
 }
-
 function stringField(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
-
 function stringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.map(stringField).filter(Boolean);
 }
-
 function toHit(value: unknown): SearchHit | null {
   if (!value || typeof value !== 'object') return null;
   const row = value as Record<string, unknown>;
   const id = stringField(row.id);
   return id ? { id, source_file: stringField(row.source_file), sourceFile: stringField(row.sourceFile) } : null;
 }
-
 function keysForHit(hit: SearchHit): string[] {
   return [hit.id, hit.source_file, hit.sourceFile].filter((key): key is string => Boolean(key));
 }
-
 function roundMetric(value: number): number {
   return Number(value.toFixed(6));
 }
-
 function readGitSha(): string {
   const proc = Bun.spawnSync(['git', 'rev-parse', 'HEAD']);
   return proc.success ? new TextDecoder().decode(proc.stdout).trim() : 'unknown';
 }
-
 function parseArgs(args: string[]) {
   const opts = new Map<string, string>();
   for (let i = 0; i < args.length; i += 1) {
@@ -214,21 +202,20 @@ function parseArgs(args: string[]) {
     outFile: opts.get('out') ?? 'benchmarks/out/honest-recall.json',
   };
 }
-
 function required(opts: Map<string, string>, key: string): string {
   const value = opts.get(key);
   if (!value) throw new Error(`missing --${key}`);
   return value;
 }
-
 function printSummary(report: HonestRecallReport): void {
   const recall = report.metrics.find((row): row is Extract<MetricRow, { metric_family: 'Recall@k' }> => row.metric_family === 'Recall@k');
-  if (!recall) throw new Error('Recall@k metric row missing');
-  console.log(`${recall.label}: ${recall.value} (${recall.hits}/${recall.total_queries})`);
+  const reject = report.metrics.find((row): row is Extract<MetricRow, { metric: 'Reject-Recall' }> => row.metric === 'Reject-Recall');
+  if (!recall || !reject) throw new Error('required metric row missing');
+  console.log(`${recall.label}: ${recall.value} (${recall.hits}/${recall.total_queries} answerable)`);
+  console.log(`Reject-Recall: ${reject.value} (${reject.correct_rejections}/${reject.total_unanswerable} unanswerable)`);
   console.log('Answer-Accuracy: NOT MEASURED — retrieval-only harness');
   console.log(`provenance_json: ${report.provenance.mode}/${report.provenance.model} top_k=${report.provenance.top_k}`);
 }
-
 if (import.meta.main) {
   try {
     const cli = parseArgs(Bun.argv.slice(2));
