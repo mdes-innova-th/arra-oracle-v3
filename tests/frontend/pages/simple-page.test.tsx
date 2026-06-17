@@ -9,6 +9,8 @@ describe('Simple page', () => {
       const html = htmlFor(<App />);
       expect(html).toContain('Simple mode');
       expect(html).toContain('Starting up…');
+      expect(html).toContain('Ask your Oracle');
+      expect(html).toContain('type="search"');
       expect(html).toContain('Save something to memory');
       expect(html).toContain('href="/"');
       expect(html).toContain('Advanced Studio');
