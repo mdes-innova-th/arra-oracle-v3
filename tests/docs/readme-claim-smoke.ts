@@ -24,11 +24,12 @@ export async function smokeArraMine(repoRoot: string, scratch: string) {
   } finally { storage.close(); }
 }
 
-export async function smokeDockerHeroPath(repoRoot: string) {
+export async function smokeDockerHeroPath(repoRoot: string, scratch: string) {
   const suffix = `${process.pid}-${Date.now()}`;
   const image = `arra-readme-claims:${suffix}`;
   const name = `arra-readme-claims-${suffix}`;
-  const volume = `arra-readme-claims-${suffix}`;
+  const dataDir = join(scratch, `docker-data-${suffix}`);
+  mkdirSync(dataDir, { recursive: true });
   const port = await freePort();
   let container = '';
   try {
@@ -38,7 +39,7 @@ export async function smokeDockerHeroPath(repoRoot: string) {
     });
     const run = await runProcess([
       'docker', 'run', '-d', '--name', name,
-      '-p', `127.0.0.1:${port}:47778`, '-v', `${volume}:/data`,
+      '-p', `127.0.0.1:${port}:47778`, '-v', `${dataDir}:/data`,
       '-e', 'ORACLE_FILE_WATCHER=0', '-e', 'ORACLE_EMBEDDER=none',
       '-e', 'ORACLE_GATEWAY_HOT_RELOAD=0', '-e', 'VECTOR_URL=', image,
     ], { timeoutMs: 30_000 });
@@ -46,7 +47,6 @@ export async function smokeDockerHeroPath(repoRoot: string) {
     return await waitForHealth(port);
   } finally {
     if (container) await runProcess(['docker', 'rm', '-f', container], { allowFailure: true });
-    await runProcess(['docker', 'volume', 'rm', '-f', volume], { allowFailure: true });
     await runProcess(['docker', 'rmi', '-f', image], { allowFailure: true });
   }
 }

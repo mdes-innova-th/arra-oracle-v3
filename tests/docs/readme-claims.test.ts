@@ -92,8 +92,8 @@ describe('README/docs advertised claims', () => {
   });
 
   test('Docker hero path builds and serves health from /data', async () => {
-    expect(readme).toMatch(/docker run[\s\S]*-p 47778:47778[\s\S]*-v arra-data:\/data[\s\S]*arra-oracle-v3:http/);
-    const health = await smokeDockerHeroPath(repoRoot);
+    expect(readme).toMatch(/export ORACLE_DATA_DIR=[\s\S]*docker run[\s\S]*-p 47778:47778[\s\S]*-v \"\$ORACLE_DATA_DIR:\/data\"[\s\S]*arra-oracle-v3:http/);
+    const health = await smokeDockerHeroPath(repoRoot, scratch);
     expect(health.status).toBe('ok');
     expect(health.dbCheck.path).toBe('/data/oracle.db');
   }, 180_000);
