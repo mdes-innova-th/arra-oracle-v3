@@ -13,6 +13,7 @@ export const HEALTH_DOWN_RETRY_COUNT = 3;
 
 export interface SimpleHealthPayload {
   status?: string;
+  healthStatus?: string;
   db?: string | { status?: string };
   dbStatus?: string;
   oracle?: string;
@@ -87,7 +88,7 @@ export function mapHealthState(input: HealthStateInput): HealthState {
     return HealthState.Starting;
   }
 
-  const status = health.status?.toLowerCase();
+  const status = (health.healthStatus ?? health.status)?.toLowerCase();
   if (health.draining || status === 'starting' || status === 'draining') return HealthState.Starting;
   if (status === 'down' || status === 'error') return HealthState.Down;
 

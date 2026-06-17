@@ -55,7 +55,7 @@ export const BUILTIN_HELP: CliHelpEntry[] = [
   },
   {
     command: "doctor",
-    help: "run operator diagnostics against the resolved target",
+    help: "verify backend, DB, FTS, vector, embedder, and MCP launch",
     usage: "arra-cli doctor [--json]",
     flags: ["--json", "--help", "-h"],
     examples: ["arra-cli doctor", "arra-cli doctor --json", "arra-cli --at cafe doctor"],
