@@ -138,11 +138,13 @@ describe('honest recall benchmark harness', () => {
       mode: 'hybrid', model: 'multi', top_k: 3, metric: 'Recall@k', metric_family: 'Recall@k',
     });
     expect(report.provenance.stack).toEqual(['bge-m3', 'nomic', 'qwen3', 'FTS5']);
-    expect(report.provenance.corpus).toEqual({ label: 'public-recall-dataset-v2', size: 48 });
-    expect(report.metrics[0]).toMatchObject({ metric: 'Recall@k', label: 'Recall@3', value: 0.833333, hits: 40, total_queries: 48 });
-    expect(report.cases).toHaveLength(48);
-    expect(report.cases.find((item: { id: string }) => item.id === 'vector/preflight')).toMatchObject({ hit: false });
-    expect(report.cases.find((item: { id: string }) => item.id === 'edge/no-match-weather')).toMatchObject({ expected_ids: [], hit: false });
+    expect(report.provenance.corpus).toEqual({ label: 'temp-ollama-12-docs-v1', size: 12 });
+    expect(report.provenance).toMatchObject({ backend: 'temp-bun-sqlite-fts5-memory-vectors', embedding_provider: 'ollama', seeded_docs: 12 });
+    expect(report.provenance.ollama_models).toEqual(['bge-m3', 'nomic-embed-text', 'qwen3-embedding']);
+    expect(report.provenance.baseline).toMatchObject({ label: 'Recall@3', value: 0.9, hits: 9, total_queries: 10 });
+    expect(report.metrics[0]).toMatchObject({ metric: 'Recall@k', label: 'Recall@3', value: 1, hits: 10, total_queries: 10 });
+    expect(report.cases).toHaveLength(10);
+    expect(report.cases.find((item: { id: string }) => item.id === 'weak/semantic-vector')).toMatchObject({ hit: true });
   });
 
   test('HTTP searcher calls our hybrid multi-model search surface', async () => {
