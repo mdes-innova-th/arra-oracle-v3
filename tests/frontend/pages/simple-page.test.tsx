@@ -8,7 +8,7 @@ describe('Simple page', () => {
     try {
       const html = htmlFor(<App />);
       expect(html).toContain('Simple mode');
-      expect(html).toContain('Checking Oracle health');
+      expect(html).toContain('Starting up…');
       expect(html).not.toContain('Control Surface');
       expect(html).not.toContain('Backend unavailable');
     } finally {

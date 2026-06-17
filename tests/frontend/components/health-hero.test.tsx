@@ -1,27 +1,25 @@
 import { describe, expect, test } from 'bun:test';
-import { HealthHero, checkedAgo, healthState, healthStates } from '../../../frontend/src/components/HealthHero';
+import { HealthHero, checkedAgo } from '../../../frontend/src/components/HealthHero';
+import { HEALTH_STATE_COPY, HealthState } from '../../../frontend/src/components/simple/healthState';
 import { htmlFor } from '../_render';
 
 describe('HealthHero', () => {
   test('renders all health states with status semantics', () => {
-    const html = healthStates.map((state) => htmlFor(
+    const html = Object.values(HealthState).map((state) => htmlFor(
       <HealthHero state={state} checkedAt={1_000} onAction={() => {}} />,
     )).join('\n');
 
     expect(html).toContain('role="status"');
     expect(html).toContain('aria-live="polite"');
-    expect(html).toContain('Oracle is ready');
-    expect(html).toContain('Oracle is degraded');
-    expect(html).toContain('Oracle is offline');
-    expect(html).toContain('Oracle is draining');
-    expect(html).toContain('Oracle health is unknown');
-    expect(html).toContain('Checking Oracle health');
+    for (const state of Object.values(HealthState)) {
+      const copy = HEALTH_STATE_COPY[state];
+      expect(html).toContain(copy.title.replace("Can't", 'Can&#x27;t'));
+      expect(html).toContain(copy.action);
+    }
   });
 
-  test('maps raw health status and renders checked age', () => {
-    expect(healthState('ok')).toBe('ok');
-    expect(healthState('degraded')).toBe('degraded');
-    expect(healthState('surprising')).toBe('unknown');
+  test('renders checked age', () => {
     expect(checkedAgo(1_000, 12_400)).toBe('checked 11s ago');
+    expect(checkedAgo(null)).toBe('not checked yet');
   });
 });
