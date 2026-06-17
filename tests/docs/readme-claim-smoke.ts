@@ -37,22 +37,23 @@ export async function smokeDockerHeroPath(repoRoot: string, scratch: string) {
       cwd: repoRoot,
       timeoutMs: 180_000,
     });
+    const user = dockerUserArgs();
     const run = await runProcess([
-      'docker', 'run', '-d', '--name', name,
+      'docker', 'run', '-d', '--name', name, ...user,
       '-p', `127.0.0.1:${port}:47778`, '-v', `${dataDir}:/data`,
       '-e', 'ORACLE_FILE_WATCHER=0', '-e', 'ORACLE_EMBEDDER=none',
       '-e', 'ORACLE_GATEWAY_HOT_RELOAD=0', '-e', 'VECTOR_URL=', image,
     ], { timeoutMs: 30_000 });
     container = run.stdout.trim();
-    return await waitForHealth(port);
+    return await waitForHealth(port, container);
   } finally {
     if (container) await runProcess(['docker', 'rm', '-f', container], { allowFailure: true });
     await runProcess(['docker', 'rmi', '-f', image], { allowFailure: true });
   }
 }
 
-async function waitForHealth(port: number): Promise<Record<string, any>> {
-  const deadline = Date.now() + 60_000;
+async function waitForHealth(port: number, container: string): Promise<Record<string, any>> {
+  const deadline = Date.now() + 120_000;
   while (Date.now() < deadline) {
     try {
       const response = await fetch(`http://127.0.0.1:${port}/api/health`);
@@ -60,7 +61,14 @@ async function waitForHealth(port: number): Promise<Record<string, any>> {
     } catch {}
     await Bun.sleep(500);
   }
-  throw new Error('Docker HTTP image did not serve /api/health');
+  const logs = await runProcess(['docker', 'logs', container], { allowFailure: true });
+  throw new Error(`Docker HTTP image did not serve /api/health\n${logs.stdout}${logs.stderr}`);
+}
+
+function dockerUserArgs(): string[] {
+  const uid = process.getuid?.();
+  const gid = process.getgid?.();
+  return uid === undefined || gid === undefined ? [] : ['--user', `${uid}:${gid}`];
 }
 
 async function runProcess(command: string[], options: RunOptions = {}): Promise<RunResult> {

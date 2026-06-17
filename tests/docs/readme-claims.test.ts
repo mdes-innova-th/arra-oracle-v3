@@ -92,11 +92,11 @@ describe('README/docs advertised claims', () => {
   });
 
   test('Docker hero path builds and serves health from /data', async () => {
-    expect(readme).toMatch(/export ORACLE_DATA_DIR=[\s\S]*docker run[\s\S]*-p 47778:47778[\s\S]*-v \"\$ORACLE_DATA_DIR:\/data\"[\s\S]*arra-oracle-v3:http/);
+    expect(readme).toMatch(/export ORACLE_DATA_DIR=[\s\S]*docker run[\s\S]*--user \"\$\(id -u\):\$\(id -g\)\"[\s\S]*-p 47778:47778[\s\S]*-v \"\$ORACLE_DATA_DIR:\/data\"[\s\S]*arra-oracle-v3:http/);
     const health = await smokeDockerHeroPath(repoRoot, scratch);
     expect(health.status).toBe('ok');
     expect(health.dbCheck.path).toBe('/data/oracle.db');
-  }, 180_000);
+  }, 240_000);
 
   test('arra mine smoke ingests a folder through the advertised CLI', async () => {
     expect(readFileSync('src/cli/help.ts', 'utf8')).toContain('arra-cli mine <dir>');
