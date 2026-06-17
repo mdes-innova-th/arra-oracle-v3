@@ -54,7 +54,10 @@ describe('workers/mcp deploy package', () => {
   test('declares the runtime dependencies needed by wrangler deploy', () => {
     const pkg = readJson('workers/mcp/package.json');
 
-    expect(pkg.scripts).toMatchObject({ deploy: 'wrangler deploy', typecheck: 'tsc --noEmit' });
+    expect(pkg.scripts).toMatchObject({
+      deploy: 'tsc --noEmit && wrangler deploy --config wrangler.jsonc',
+      typecheck: 'tsc --noEmit',
+    });
     expect(pkg.dependencies).toMatchObject({
       '@modelcontextprotocol/sdk': expect.any(String),
       agents: expect.any(String),
