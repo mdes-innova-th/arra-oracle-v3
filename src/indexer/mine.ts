@@ -14,6 +14,7 @@ const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', '.next', '.t
 
 export interface MineOptions { dir: string; dbPath?: string; dryRun?: boolean }
 export interface MineResult { scanned: number; stored: number; skipped: number; project: string; root: string }
+export interface MineWatchOptions extends MineOptions { signal?: AbortSignal; debounceMs?: number }
 
 export function stableMineDocId(root: string, filePath: string): string {
   const rel = relativeSource(root, filePath);
@@ -68,6 +69,48 @@ export async function mineFolder(options: MineOptions): Promise<MineResult> {
   } finally {
     storage.close();
   }
+}
+
+export async function watchMineFolder(
+  options: MineWatchOptions,
+  onResult: (result: MineResult) => void = () => {},
+): Promise<void> {
+  const root = path.resolve(options.dir);
+  const signal = options.signal;
+  const debounceMs = options.debounceMs ?? 300;
+  const watchers: fs.FSWatcher[] = [];
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let running = Promise.resolve();
+
+  const run = () => {
+    running = running.then(async () => onResult(await mineFolder(options)));
+    return running;
+  };
+  const schedule = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => { void run(); }, debounceMs);
+  };
+  const close = () => {
+    if (timer) clearTimeout(timer);
+    for (const watcher of watchers) watcher.close();
+  };
+
+  for (const dir of collectMineDirs(root)) watchers.push(fs.watch(dir, schedule));
+  await run();
+  if (signal?.aborted) return close();
+  await new Promise<void>((resolve) => {
+    signal?.addEventListener('abort', () => { close(); resolve(); }, { once: true });
+  });
+  await running;
+}
+
+function collectMineDirs(root: string): string[] {
+  const dirs = [root];
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory() || SKIP_DIRS.has(entry.name) || entry.name.startsWith('.')) continue;
+    dirs.push(...collectMineDirs(path.join(root, entry.name)));
+  }
+  return dirs;
 }
 
 function toMineDocument(root: string, file: string, content: string, id: string, version: number, project: string): OracleDocument {
