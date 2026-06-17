@@ -6,7 +6,7 @@ import path from 'path';
 import { parseMineArgs } from '../../../src/cli/commands/mine.ts';
 import { createDatabase } from '../../../src/db/index.ts';
 import { oracleDocuments } from '../../../src/db/schema.ts';
-import { mineFolder, stableMineDocId } from '../../../src/indexer/mine.ts';
+import { mineFolder, stableMineDocId, watchMineFolder } from '../../../src/indexer/mine.ts';
 
 let tempDir = '';
 
@@ -23,9 +23,10 @@ function tmp(): string {
 describe('arra mine folder ingest', () => {
   test('parses friendly command flags and rejects bad input', () => {
     expect(parseMineArgs(['notes', '--db-path', '/tmp/oracle.db'])).toEqual({
-      dir: 'notes', dbPath: '/tmp/oracle.db', dryRun: false, help: false,
+      dir: 'notes', dbPath: '/tmp/oracle.db', dryRun: false, watch: false, help: false,
     });
-    expect(parseMineArgs(['--dry-run', '--db-path=/tmp/oracle.db', 'notes']).dryRun).toBe(true);
+    expect(parseMineArgs(['--dry-run', '--watch', '--db-path=/tmp/oracle.db', 'notes']).dryRun).toBe(true);
+    expect(parseMineArgs(['-w', 'notes']).watch).toBe(true);
     expect(() => parseMineArgs(['notes', '--bad'])).toThrow('unknown mine option: --bad');
     expect(() => parseMineArgs(['--db-path'])).toThrow('--db-path requires a path');
   });
@@ -52,5 +53,29 @@ describe('arra mine folder ingest', () => {
     expect(row?.sourceFile).toBe('mine/notes/ops/deploy.md');
     expect(row?.createdBy).toBe('mine');
     expect(JSON.parse(row?.concepts ?? '[]')).toContain('ops');
+  });
+
+  test('watch re-ingests changed files after the initial run', async () => {
+    const root = tmp();
+    const dbPath = path.join(root, 'oracle.db');
+    const notes = path.join(root, 'notes');
+    fs.mkdirSync(notes, { recursive: true });
+    const notePath = path.join(notes, 'watch.md');
+    fs.writeFileSync(notePath, 'first version');
+
+    const controller = new AbortController();
+    const results: number[] = [];
+    const watchDone = watchMineFolder(
+      { dir: notes, dbPath, debounceMs: 20, signal: controller.signal },
+      (result) => {
+        results.push(result.stored);
+        if (results.length === 1) fs.writeFileSync(notePath, 'second version');
+        if (results.length >= 2) controller.abort();
+      },
+    );
+
+    await watchDone;
+
+    expect(results).toEqual([1, 1]);
   });
 });

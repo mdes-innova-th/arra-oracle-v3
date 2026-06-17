@@ -77,9 +77,9 @@ export const BUILTIN_HELP: CliHelpEntry[] = [
   {
     command: "mine",
     help: "ingest a folder into Oracle memory",
-    usage: "arra-cli mine <dir> [--db-path <file>] [--dry-run]",
-    flags: ["--db-path <file>", "--dry-run", "--help", "-h"],
-    examples: ["arra-cli mine ~/notes", "arra-cli mine ./docs --dry-run"],
+    usage: "arra-cli mine <dir> [--watch] [--db-path <file>] [--dry-run]",
+    flags: ["--watch", "--db-path <file>", "--dry-run", "--help", "-h"],
+    examples: ["arra-cli mine docs/sample-notes", "arra-cli mine ~/notes --watch"],
   },
   {
     command: "huginn",
