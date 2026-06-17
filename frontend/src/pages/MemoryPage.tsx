@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { searchVector } from '../api';
+import { MemoryDashboardInsights } from '../components/MemoryDashboardInsights';
 import { MemoryHealthPanel } from '../components/MemoryHealthPanel';
 import { SearchResultCard } from '../components/SearchResultCard';
 import { memoryPath, vectorResultsPath } from '../routePaths';
@@ -105,6 +106,7 @@ export function MemoryPage({ search = searchVector }: { search?: MemorySearch })
       </section>
 
       <MemoryHealthPanel results={results} state={state} />
+      <MemoryDashboardInsights results={results} />
 
       <section className="grid gap-3 lg:grid-cols-2" aria-label="Memory heat result cards" aria-busy={state === 'loading'}>
         {results.map((result) => <SearchResultCard key={result.id} result={result} />)}
