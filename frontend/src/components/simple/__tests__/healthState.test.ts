@@ -55,4 +55,12 @@ describe('simple health state mapper', () => {
   test('maps explicit down payloads to down', () => {
     expect(mapHealthState({ msSinceLoad: 10_000, health: { status: 'down' } })).toBe(HealthState.Down);
   });
+
+
+  test('prefers enriched healthStatus over legacy ok status', () => {
+    expect(mapHealthState({ msSinceLoad: 10_000, health: { status: 'ok', healthStatus: 'degraded', dbStatus: 'connected' } }))
+      .toBe(HealthState.DegradedFts);
+    expect(mapHealthState({ msSinceLoad: 10_000, health: { status: 'ok', healthStatus: 'down' } }))
+      .toBe(HealthState.Down);
+  });
 });
