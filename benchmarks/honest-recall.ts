@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { candidatePoolSize } from '../src/search/retrieve-depth.ts';
 import { buildRetrievalMetrics, type MetricSamples, type RetrievalMetricRow } from './honest-recall-methodology.ts';
 import { rerankStage, searchWithOptionalRerank, type RerankOptions, type RerankStage } from './honest-recall-rerank.ts';
 
@@ -59,17 +60,19 @@ export function createHttpSearcher(baseUrl: string): Searcher {
 
 export async function runHonestRecallBenchmark(options: {
   cases: BenchmarkCase[]; corpus: CorpusRef; topK: number; mode?: BenchmarkMode; model?: string;
-  searcher: Searcher; outFile?: string; gitSha?: string; now?: string; rerank?: RerankOptions; metricSamples?: MetricSamples;
+  searcher: Searcher; outFile?: string; gitSha?: string; now?: string;
+  retrieveDepth?: number; rerank?: RerankOptions; metricSamples?: MetricSamples;
 }): Promise<HonestRecallReport> {
   const mode = normalizeMode(options.mode ?? 'hybrid');
   const model = options.model ?? 'multi';
   const recallLabel = recallMetric(options.topK);
+  const retrieveDepth = candidatePoolSize(options.topK, options.retrieveDepth === undefined ? process.env : { ORACLE_RETRIEVE_DEPTH: String(options.retrieveDepth) });
   validateBenchmarkInputs(options.cases, options.corpus, options.topK);
-  const stage = rerankStage(options.rerank?.enabled === true);
+  const stage = rerankStage(options.rerank?.enabled === true, retrieveDepth);
   const cases: HonestRecallReport['cases'] = [];
   for (const item of options.cases) {
     const hits = await searchWithOptionalRerank({
-      searcher: options.searcher, query: item.query, topK: options.topK, mode, model, rerank: options.rerank, stage,
+      searcher: options.searcher, query: item.query, topK: options.topK, retrieveDepth, mode, model, rerank: options.rerank, stage,
     });
     const expected = new Set(item.expectedIds);
     const retrievedIds = hits.map((hit) => hit.id);
@@ -137,3 +140,4 @@ if (import.meta.main) {
   try { const { runCli } = await import('./honest-recall-cli.ts'); await runCli(Bun.argv.slice(2)); }
   catch (error) { console.error(`HONEST BENCHMARK REFUSED: ${error instanceof Error ? error.message : String(error)}`); process.exit(1); }
 }
+

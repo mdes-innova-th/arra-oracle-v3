@@ -12,6 +12,7 @@ export async function runCli(args: string[]): Promise<void> {
     model: cli.model,
     searcher: createHttpSearcher(cli.baseUrl),
     outFile: cli.outFile,
+    retrieveDepth: Number.isSafeInteger(cli.retrieveDepth) ? cli.retrieveDepth : undefined,
     rerank: cli.rerank ? { enabled: true, url: cli.rerankerUrl } : undefined,
   });
   printSummary(report);
@@ -36,6 +37,7 @@ function parseArgs(args: string[]) {
     outFile: opts.get('out') ?? 'benchmarks/out/honest-recall.json',
     rerank: opts.has('rerank'),
     rerankerUrl: opts.get('reranker-url'),
+    retrieveDepth: Number(opts.get('retrieve-depth') ?? opts.get('candidate-pool') ?? NaN),
   };
 }
 

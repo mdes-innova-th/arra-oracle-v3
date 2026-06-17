@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { runHonestRecallBenchmark, type Searcher } from '../../benchmarks/honest-recall.ts';
 
 describe('honest recall benchmark rerank stage', () => {
-  test('is off by default and keeps the requested retrieval depth', async () => {
+  test('is off by default and still retrieves the configured candidate pool', async () => {
     const seen: number[] = [];
     const searcher: Searcher = async ({ topK }) => {
       seen.push(topK);
@@ -18,7 +18,7 @@ describe('honest recall benchmark rerank stage', () => {
       now: '2026-06-17T00:00:00.000Z',
     });
 
-    expect(seen).toEqual([3]);
+    expect(seen).toEqual([100]);
     expect(report.provenance.rerank).toBeUndefined();
     expect(report.cases[0].retrieved_ids).toEqual(['doc-a', 'doc-b']);
   });

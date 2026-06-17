@@ -22,6 +22,7 @@ import { createVectorProxy } from './vector-proxy.ts';
 import { buildLearningMarkdown, dateSlug } from '../learn/markdown.ts';
 import { localNativeVectorDisabledReason, localVectorIndexMissingReason, logLocalVectorDisabled } from '../vector/cpu-capabilities.ts';
 import { isVectorSectionEnabled } from '../vector/config.ts';
+import { candidatePoolSize } from '../search/retrieve-depth.ts';
 
 // Module-level proxy instance — bound to VECTOR_URL at boot. If VECTOR_URL is
 // unset, this is null and the local vector adapter runs in-process (legacy
@@ -101,6 +102,7 @@ export async function handleSearch(
   const resolvedProject = (project ?? detectProject(cwd))?.toLowerCase() ?? null;
   const startTime = Date.now();
   const ftsQuery = buildFtsQuery(query);
+  const retrieveDepth = candidatePoolSize(limit);
   if (!ftsQuery) {
     return { results: [], total: 0, limit, offset, query };
   }
@@ -162,7 +164,7 @@ export async function handleSearch(
         ORDER BY rank
         LIMIT ?
       `);
-      ftsResults = runFtsAll<any>(stmt, [ftsQuery, ...projectParams, limit * 3]).map((row: any) => ({
+      ftsResults = runFtsAll<any>(stmt, [ftsQuery, ...projectParams, retrieveDepth]).map((row: any) => ({
         id: row.id,
         type: row.type,
         content: row.content,
@@ -189,7 +191,7 @@ export async function handleSearch(
         ORDER BY rank
         LIMIT ?
       `);
-      ftsResults = runFtsAll<any>(stmt, [ftsQuery, type, ...projectParams, limit * 3]).map((row: any) => ({
+      ftsResults = runFtsAll<any>(stmt, [ftsQuery, type, ...projectParams, retrieveDepth]).map((row: any) => ({
         id: row.id,
         type: row.type,
         content: row.content,
@@ -218,8 +220,8 @@ export async function handleSearch(
     const remote = await vectorProxy.search({
       q: query,
       type,
-      limit,
-      offset,
+      limit: retrieveDepth,
+      offset: 0,
       mode: 'vector',
       project: resolvedProject ?? undefined,
       cwd,
@@ -237,7 +239,7 @@ export async function handleSearch(
       const vector = await localVectorOperations.search({
         query,
         type,
-        limit,
+        limit: retrieveDepth,
         project: resolvedProject,
         model,
       });

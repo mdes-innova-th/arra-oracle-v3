@@ -6,6 +6,7 @@ import { queryPointerIndex } from '../../search/pointer-index.ts';
 import { rerankCandidates } from '../../server/reranker.ts';
 import type { SearchResult } from '../../server/types.ts';
 import { compactSearchResults, parseSearchRetrievalMode } from '../../search/compact-summary.ts';
+import { candidatePoolSize } from '../../search/retrieve-depth.ts';
 import { isVectorSectionEnabled } from '../../vector/config.ts';
 import type { ToolContext, ToolResponse, OracleSearchInput } from '../types.ts';
 import { applyEntityLinkBoost, hasEntityLinkSearchHook, queryEntityLinks } from './entities.ts';
@@ -28,6 +29,7 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
 
   const augmentedQuery = augmentQueryWithAcronyms(query);
   const safeQuery = sanitizeFtsQuery(augmentedQuery);
+  const retrieveDepth = candidatePoolSize(limit);
   const resolvedProject = (project ?? detectProject(cwd))?.toLowerCase() ?? null;
   let warning: string | undefined;
   let vectorSearchError = false;
@@ -40,7 +42,7 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
   let ftsRawResults: ReturnType<typeof searchFts> = [];
   if (effectiveMode !== 'vector' && safeQuery) {
     try {
-      ftsRawResults = searchFts(ctx, safeQuery, type, limit * 3, resolvedProject);
+      ftsRawResults = searchFts(ctx, safeQuery, type, retrieveDepth, resolvedProject);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       warning = `FTS5 keyword search unavailable: ${errorMessage}`;
@@ -51,7 +53,7 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
   const pointerResults = queryPointerIndex(ctx.sqlite, {
     query: augmentedQuery,
     type,
-    limit: limit * 3,
+    limit: retrieveDepth,
     project: resolvedProject,
     tenantId: currentTenantId(),
   });
@@ -59,7 +61,7 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
   let vecResults: Awaited<ReturnType<typeof vectorSearch>> = [];
   if (effectiveMode !== 'fts') {
     try {
-      vecResults = await vectorSearch(ctx, augmentedQuery, type, limit * 2, model);
+      vecResults = await vectorSearch(ctx, augmentedQuery, type, retrieveDepth, model);
     } catch (error) {
       vectorSearchError = true;
       vectorAvailable = false;
@@ -78,11 +80,11 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
   const entityRankedResults = rerankByEntityLinks(ctx.sqlite, combinedResults, augmentedQuery, currentTenantId());
   const reranked = await rerankCandidates({
     query,
-    candidates: entityRankedResults.slice(0, 50),
+    candidates: entityRankedResults.slice(0, retrieveDepth),
     getText: (result) => result.content,
   });
   const finalResults = reranked.reranked
-    ? [...reranked.results, ...entityRankedResults.slice(50)]
+    ? [...reranked.results, ...entityRankedResults.slice(retrieveDepth)]
     : entityRankedResults;
   const hasEntityHook = hasEntityLinkSearchHook(ctx);
   const entityLinksEnabled = requestedMode !== 'fts' && (effectiveMode !== 'fts' || hasEntityHook);
@@ -90,7 +92,7 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
   let entityLinkWarning: string | undefined;
   if (entityLinksEnabled && finalResults.length > 0) {
     try {
-      entityLinkHits = await queryEntityLinks(ctx, augmentedQuery, Math.max(limit * 3, 10), model);
+      entityLinkHits = await queryEntityLinks(ctx, augmentedQuery, retrieveDepth, model);
     } catch (error) {
       entityLinkWarning = error instanceof Error ? error.message : String(error);
       console.error('[EntityLinkSearch]', entityLinkWarning);
@@ -110,6 +112,7 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
   const metadata = {
     mode,
     limit,
+    retrieveDepth,
     offset,
     total: totalMatches,
     ftsMatches: ftsRawResults.length,
