@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { apiClient, type ApiClient } from '../api/client';
+import { apiClient, type ApiClient } from '../../api/client';
 import { SimpleResultCard } from './SimpleResultCard';
-import type { VectorSearchResponse } from '../../../src/server/types';
+import type { VectorSearchResponse } from '../../../../src/server/types';
 
 export const SIMPLE_SEARCH_DEBOUNCE_MS = 600;
 export const SIMPLE_SEARCH_LIMIT = 5;

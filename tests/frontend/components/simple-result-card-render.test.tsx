@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { SimpleResultCard, simpleResultPreview, simpleResultTitle } from '../../../frontend/src/components/SimpleResultCard';
+import { SimpleResultCard, simpleResultPreview, simpleResultTitle } from '../../../frontend/src/components/simple/SimpleResultCard';
 import { htmlFor } from '../_render';
 import type { VectorSearchResponse } from '../../../src/server/types';
 

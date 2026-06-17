@@ -7,7 +7,7 @@ import {
   simpleSearchStatus,
   visibleSimpleResults,
   type SimpleSearchClient,
-} from '../../../frontend/src/components/SimpleSearch';
+} from '../../../frontend/src/components/simple/SimpleSearch';
 import { htmlFor } from '../_render';
 import type { VectorSearchResponse } from '../../../src/server/types';
 

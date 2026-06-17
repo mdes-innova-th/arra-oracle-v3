@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { VectorSearchResponse } from '../../../src/server/types';
+import type { VectorSearchResponse } from '../../../../src/server/types';
 
 type SimpleResult = VectorSearchResponse['results'][number];
 
