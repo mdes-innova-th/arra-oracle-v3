@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { StateNotice } from './StateNotice';
 
 export type CommandPaletteAction = {
   id: string;
@@ -24,26 +25,31 @@ export function commandPaletteActions(onRefresh: () => void): CommandPaletteActi
   ];
 }
 
-export function CommandPalette({ onRefresh }: { onRefresh: () => void }) {
+export function filterCommandPaletteActions(commands: CommandPaletteAction[], query: string): CommandPaletteAction[] {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return commands;
+  return commands.filter((command) => `${command.label} ${command.description}`.toLowerCase().includes(normalized));
+}
+
+export function CommandPalette({
+  onRefresh,
+  defaultOpen = false,
+  initialQuery = '',
+}: {
+  onRefresh: () => void;
+  defaultOpen?: boolean;
+  initialQuery?: string;
+}) {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(defaultOpen);
+  const [query, setQuery] = useState(initialQuery);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const restoredRef = useRef(false);
-
   const commands = useMemo<CommandPaletteAction[]>(() => commandPaletteActions(onRefresh), [onRefresh]);
-
-  const visibleCommands = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return commands;
-    return commands.filter((command) => {
-      const searchable = `${command.label} ${command.description}`.toLowerCase();
-      return searchable.includes(normalized);
-    });
-  }, [commands, query]);
+  const visibleCommands = useMemo(() => filterCommandPaletteActions(commands, query), [commands, query]);
   const listboxId = 'command-palette-options';
   const activeOptionId = visibleCommands[selectedIndex] ? `command-palette-option-${visibleCommands[selectedIndex].id}` : undefined;
 
@@ -58,16 +64,12 @@ export function CommandPalette({ onRefresh }: { onRefresh: () => void }) {
     function onKeyDown(event: globalThis.KeyboardEvent) {
       const target = event.target as EventTarget | null;
       const usesModifier = event.metaKey || event.ctrlKey;
-      const isK = event.key.toLowerCase() === 'k';
-
-      if (usesModifier && isK && !isTextInput(target) && !event.shiftKey && !event.altKey) {
+      if (usesModifier && event.key.toLowerCase() === 'k' && !isTextInput(target) && !event.shiftKey && !event.altKey) {
         event.preventDefault();
         setOpen((current) => !current);
         return;
       }
-
-      if (!open) return;
-      if (event.key === 'Escape') {
+      if (open && event.key === 'Escape') {
         event.preventDefault();
         setOpen(false);
       }
@@ -89,19 +91,15 @@ export function CommandPalette({ onRefresh }: { onRefresh: () => void }) {
   }, [open]);
 
   useEffect(() => {
-    if (selectedIndex >= visibleCommands.length) {
-      setSelectedIndex(Math.max(visibleCommands.length - 1, 0));
-    }
+    if (selectedIndex >= visibleCommands.length) setSelectedIndex(Math.max(visibleCommands.length - 1, 0));
   }, [selectedIndex, visibleCommands.length]);
 
   useEffect(() => {
     if (!open) return;
-
     const onMouseDown = (event: MouseEvent) => {
       if (overlayRef.current?.contains(event.target as Node)) return;
       setOpen(false);
     };
-
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [open]);
@@ -114,19 +112,16 @@ export function CommandPalette({ onRefresh }: { onRefresh: () => void }) {
 
   function handleListKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (!open) return;
-
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       setSelectedIndex((current) => (current + 1) % Math.max(visibleCommands.length, 1));
       return;
     }
-
     if (event.key === 'ArrowUp') {
       event.preventDefault();
       setSelectedIndex((current) => (current - 1 + Math.max(visibleCommands.length, 1)) % Math.max(visibleCommands.length, 1));
       return;
     }
-
     if (event.key === 'Enter') {
       event.preventDefault();
       const current = visibleCommands[selectedIndex];
@@ -139,6 +134,7 @@ export function CommandPalette({ onRefresh }: { onRefresh: () => void }) {
       <button
         ref={buttonRef}
         aria-label="Open command palette"
+        aria-controls="command-palette-dialog"
         aria-expanded={open}
         aria-haspopup="dialog"
         className="focus-ring w-full rounded-xl border border-border bg-field px-4 py-3 text-left text-sm text-text transition hover:border-accent-border hover:bg-surface-muted"
@@ -155,20 +151,26 @@ export function CommandPalette({ onRefresh }: { onRefresh: () => void }) {
           onClick={() => setOpen(false)}
         >
           <section
+            id="command-palette-dialog"
             ref={overlayRef}
             className="max-h-[min(42rem,calc(100vh-2rem))] w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-field p-4 shadow-2xl shadow-black/20"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Command palette"
+            aria-labelledby="command-palette-title"
+            aria-describedby="command-palette-description"
           >
+            <div className="mb-3">
+              <h2 id="command-palette-title" className="text-sm font-semibold text-text">Command palette</h2>
+              <p id="command-palette-description" className="text-xs text-text-muted">Search pages and dashboard actions, then use Enter to run the selected item.</p>
+            </div>
             <input
               ref={inputRef}
-              aria-label="Search command palette"
               aria-activedescendant={activeOptionId}
               aria-autocomplete="list"
               aria-controls={listboxId}
               aria-expanded={open}
+              aria-label="Search command palette"
               className="focus-ring mb-3 min-w-0 w-full rounded-xl border border-border bg-field px-3 py-2 text-sm text-text placeholder:text-text-muted"
               role="combobox"
               value={query}
@@ -186,39 +188,23 @@ export function CommandPalette({ onRefresh }: { onRefresh: () => void }) {
                 const selected = index === selectedIndex;
                 const optionId = `command-palette-option-${command.id}`;
                 const optionClass = `focus-ring grid w-full gap-1 rounded-xl border border-border bg-surface p-3 text-left transition sm:grid-cols-[minmax(0,1fr)_minmax(12rem,1.3fr)] ${selected ? 'border-accent-border bg-accent-soft' : 'hover:bg-surface-muted'}`;
+                const label = <><span className="font-semibold text-text">{command.label}</span><span className="text-xs text-text-muted">{command.description}</span></>;
                 return (
                   <li key={command.id}>
                     {command.href ? (
-                      <Link
-                        aria-selected={selected}
-                        className={optionClass}
-                        id={optionId}
-                        onMouseEnter={() => setSelectedIndex(index)}
-                        onClick={() => execute(command)}
-                        role="option"
-                        to={command.href}
-                      >
-                        <span className="font-semibold text-text">{command.label}</span>
-                        <span className="text-xs text-text-muted">{command.description}</span>
-                      </Link>
+                      <Link aria-selected={selected} className={optionClass} id={optionId} onMouseEnter={() => setSelectedIndex(index)} onClick={() => execute(command)} role="option" to={command.href}>{label}</Link>
                     ) : (
-                      <button
-                        type="button"
-                        className={optionClass}
-                        aria-selected={selected}
-                        id={optionId}
-                        onMouseEnter={() => setSelectedIndex(index)}
-                        onClick={() => execute(command)}
-                        role="option"
-                      >
-                        <span className="font-semibold text-text">{command.label}</span>
-                        <span className="text-xs text-text-muted">{command.description}</span>
-                      </button>
+                      <button type="button" className={optionClass} aria-selected={selected} id={optionId} onMouseEnter={() => setSelectedIndex(index)} onClick={() => execute(command)} role="option">{label}</button>
                     )}
                   </li>
                 );
               })}
             </ul>
+            {!visibleCommands.length ? (
+              <div className="mt-3">
+                <StateNotice tone="warning" title="No matching command actions." detail="Try menu, plugins, MCP, vector, settings, or refresh." />
+              </div>
+            ) : null}
           </section>
         </div>
       ) : null}
