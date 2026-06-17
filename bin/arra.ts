@@ -8,10 +8,12 @@ function showHelp(): void {
 Usage:
   arra-oracle [serve] [options]
   arra-oracle mcp [--read-only]
+  arra-oracle mine <dir> [--watch]
 
 Commands:
   serve        Run the HTTP server (default)
   mcp          Run the stdio MCP server
+  mine         Ingest a folder into Oracle memory
 
 Serve options:
   --port <n>    Port to listen on (default: 47778, env: ORACLE_PORT)
@@ -19,6 +21,11 @@ Serve options:
 
 Legacy aliases kept working: arra-oracle-v3, arra-oracle-v2.
 Once running, open the UI with: bunx oracle-studio`);
+}
+
+if (command === "mine") {
+  const { mineCommand } = await import("../src/cli/commands/mine.ts");
+  process.exit(await mineCommand(args.slice(1)));
 }
 
 if (args.includes("--help") || args.includes("-h")) {
