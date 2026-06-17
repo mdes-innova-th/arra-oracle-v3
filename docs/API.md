@@ -26,8 +26,7 @@ curl -sf "${AUTH[@]}" "$BASE/api/v1/mcp/tools"
 
 ## Route inventory by family
 
-`createApp()` currently exposes 185 routes, 181 under `/api`; dynamic plugin
-routes may add more at runtime. These families match the mounted source modules.
+Base `createApp()` with no dynamic plugins/gateway config currently exposes 186 routes, 182 under `/api`; dynamic plugin and gateway routes may add more at runtime. These families match the mounted source modules.
 
 | Family | Methods and paths |
 | --- | --- |
