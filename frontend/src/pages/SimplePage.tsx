@@ -3,6 +3,7 @@ import { apiFetch } from '../api/oracle';
 import { HealthHero } from '../components/HealthHero';
 import { AddMemory } from '../components/simple/AddMemory';
 import { IndexFolderCard } from '../components/simple/IndexFolderCard';
+import { SimpleSearch } from '../components/simple/SimpleSearch';
 import { HealthState, mapHealthState, type SimpleHealthPayload } from '../components/simple/healthState';
 import { version } from '../../../package.json';
 
@@ -42,6 +43,7 @@ export function SimplePage() {
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-5xl flex-col py-6">
         <div className="grid flex-1 content-center gap-5">
           <HealthHero state={state} checkedAt={checkedAt} onAction={poll} />
+          <SimpleSearch />
           <AddMemory />
           <IndexFolderCard />
         </div>
