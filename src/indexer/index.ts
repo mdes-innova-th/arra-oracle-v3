@@ -35,6 +35,7 @@ import {
 } from './reindex-state.ts';
 import { storeDocuments } from './storage.ts';
 import { chunkDocumentsForIndexing } from './chunk-text.ts';
+import { removeDocumentPointers } from '../search/pointer-index.ts';
 
 export interface IndexOptions {
   append?: boolean;
@@ -154,6 +155,7 @@ export class OracleIndexer {
           const batch = idsToDelete.slice(i, i + BATCH_SIZE);
           const placeholders = batch.map(() => '?').join(',');
           this.sqlite.prepare(`DELETE FROM oracle_fts WHERE id IN (${placeholders})`).run(...batch);
+          removeDocumentPointers(this.sqlite, tenantId, batch);
         }
       }
     }

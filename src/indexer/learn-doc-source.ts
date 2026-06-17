@@ -10,6 +10,7 @@ import { deriveConceptsFromPath, mergeConceptsWithTags } from './concepts.ts';
 import { inferProjectFromPath } from './discovery.ts';
 import { parseLearningFile } from './parser.ts';
 import { chunkDocumentsForIndexing } from './chunk-text.ts';
+import { replaceDocumentPointers } from '../search/pointer-index.ts';
 
 export const PSI_LEARN_REL = path.join('ψ', 'learn');
 export const MEMORY_LEARN_REL = path.join('ψ', 'memory', 'learnings');
@@ -117,6 +118,12 @@ export function storeSqliteDocuments(db: Database, documents: OracleDocument[]):
       );
       deleteFts.run(doc.id);
       insertFts.run(doc.id, doc.content, doc.concepts.join(' '));
+      replaceDocumentPointers(db, {
+        documentId: doc.id,
+        content: doc.content,
+        concepts: doc.concepts,
+        timestamp: doc.updated_at || doc.created_at,
+      });
     }
     db.exec('COMMIT');
   } catch (error) {
