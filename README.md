@@ -57,7 +57,7 @@ bunx tsc --noEmit
 bun run server                 # HTTP API on http://localhost:47778
 ```
 
-Useful checks: `curl -sf http://localhost:47778/api/health` and `bun cli/src/cli.ts health`. Non-dev UI: open `http://localhost:47778/simple` for Simple Mode. React dev UI: `cd frontend && bun install && bun run dev`. Tauri: `cd frontend && cargo tauri dev`.
+Useful checks: `curl -sf http://localhost:47778/api/health` and `bun cli/src/cli.ts health`. Non-dev UI: open `http://localhost:47778/simple` for Simple Mode. React dev UI: `cd frontend && bun install && bun run dev`. Tauri: `cd frontend && cargo tauri dev`. Benchmark: Honest Recall@k hybrid multi is reported in [benchmarks/RESULTS.md](benchmarks/RESULTS.md); repro: `bun run benchmarks/honest-recall.ts --dataset benchmarks/fixtures/recall-dataset.jsonl --corpus public-recall-dataset-v2 --corpus-size 48 --top-k 3 --mode hybrid --model multi --out benchmarks/out/honest-recall.json`.
 
 ## Major features
 

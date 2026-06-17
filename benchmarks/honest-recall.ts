@@ -137,7 +137,7 @@ export async function runHonestRecallBenchmark(options: {
 
   if (options.outFile) {
     mkdirSync(dirname(options.outFile), { recursive: true });
-    writeFileSync(options.outFile, `${JSON.stringify(report, null, 2)}\n`);
+    writeFileSync(options.outFile, `${JSON.stringify(report)}\n`);
   }
   return report;
 }

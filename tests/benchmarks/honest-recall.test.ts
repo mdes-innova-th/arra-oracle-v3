@@ -72,8 +72,6 @@ describe('honest recall benchmark harness', () => {
     expect(JSON.parse(readFileSync(outFile, 'utf8')).provenance.corpus).toEqual({ label: 'oracle-test', size: 10 });
   });
 
-
-
   test('shipped public recall dataset is parseable and does not leak private paths', () => {
     const text = readFileSync('benchmarks/fixtures/recall-dataset.jsonl', 'utf8');
     const lines = text.trim().split('\n');
@@ -106,6 +104,19 @@ describe('honest recall benchmark harness', () => {
       gitSha: 'abc123',
     })).rejects.toThrow('mode must be one of: hybrid, fts, vector');
     expect(existsSync(outFile)).toBe(false);
+  });
+
+  test('published headline artifact records hybrid multi-model provenance', () => {
+    const report = JSON.parse(readFileSync('benchmarks/out/honest-recall.json', 'utf8'));
+    expect(report.provenance).toMatchObject({
+      mode: 'hybrid', model: 'multi', top_k: 3, metric: 'Recall@k', metric_family: 'Recall@k',
+    });
+    expect(report.provenance.stack).toEqual(['bge-m3', 'nomic', 'qwen3', 'FTS5']);
+    expect(report.provenance.corpus).toEqual({ label: 'public-recall-dataset-v2', size: 48 });
+    expect(report.metrics[0]).toMatchObject({ metric: 'Recall@k', label: 'Recall@3', value: 0.833333, hits: 40, total_queries: 48 });
+    expect(report.cases).toHaveLength(48);
+    expect(report.cases.find((item: { id: string }) => item.id === 'vector/preflight')).toMatchObject({ hit: false });
+    expect(report.cases.find((item: { id: string }) => item.id === 'edge/no-match-weather')).toMatchObject({ expected_ids: [], hit: false });
   });
 
   test('HTTP searcher calls our hybrid multi-model search surface', async () => {
@@ -147,7 +158,7 @@ describe('honest recall benchmark harness', () => {
       });
 
       const recall = report.metrics[0];
-      expect(recall).toMatchObject({ metric: 'Recall@10', top_k: 10 });
+      expect(recall).toMatchObject({ metric: 'Recall@k', label: 'Recall@10', top_k: 10 });
       expect(recall.metric_family).toBe('Recall@k');
       expect('value' in recall && typeof recall.value === 'number').toBe(true);
       if ('value' in recall && typeof recall.value === 'number') expect(recall.value).toBeGreaterThanOrEqual(0.7);
