@@ -58,7 +58,7 @@ Groups can be enabled/disabled via `arra.config.json` (repo-local) or `~/.arra-o
 
 | Tool | Description |
 |------|-------------|
-| `oracle_recap` | Summarize identity and top memories grouped by project. |
+| `oracle_recap` | Cheap recap of identity, projects, and recent top memories for session warmup. |
 | `oracle_profile` | List/read code-backed Oracle profiles such as Thor Oracle / Stormforge. |
 
 ## Trace (7 tools)

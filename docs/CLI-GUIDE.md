@@ -96,6 +96,7 @@ show 28 core tools before plugin tools.
 | Tool | Mode | Use |
 | --- | --- | --- |
 | `____IMPORTANT` | read | Workflow guide shown in tool lists. |
+| `oracle_recap` | read | Cheap identity + top-memory recap for session warmup. |
 | `oracle_search` | read | Hybrid FTS/vector search over memories. |
 | `oracle_read` | read | Read one document by id/path. |
 | `oracle_list` | read | Browse documents with filters. |

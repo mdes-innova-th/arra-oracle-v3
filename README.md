@@ -21,8 +21,8 @@ Use this path first: one local data dir, Docker for HTTP, and `arra mine` to ing
 export ORACLE_DATA_DIR="$HOME/.arra-oracle-v2"
 mkdir -p "$ORACLE_DATA_DIR"
 
-docker run --rm --name arra-oracle -p 47778:47778 \
-  -e ORACLE_EMBEDDER=none \
+docker run --rm --name arra-oracle --user "$(id -u):$(id -g)" \
+  -p 47778:47778 -e ORACLE_EMBEDDER=none \
   -v "$ORACLE_DATA_DIR:/data" \
   ghcr.io/soul-brews-studio/arra-oracle-v3:http
 ```

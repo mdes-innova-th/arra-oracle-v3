@@ -1,10 +1,11 @@
 # 10-minute quickstart: Docker → `arra mine` → ask
 
-This is the non-dev path for a first local Oracle memory. It runs the server in
-Docker, exposes the `arra` CLI from that same container, mines a notes folder,
-and asks a cited question. No schema, collection, vector provider, embedding
-provider, local Bun install, or LLM key is required: `arra mine` derives
-project/concepts from the folder and `ask` uses local extractive answers here.
+This is the non-dev path for a first local Oracle memory. It starts the HTTP
+server in Docker, runs the bundled `arra` CLI inside that same container, mines a
+notes folder, and asks a cited question. No schema, collection, vector provider,
+embedding provider, local Bun install, or LLM key is required: `arra mine`
+derives project/concepts from the folder and `ask` uses local extractive answers
+here.
 
 ## 0. Requirements
 
@@ -56,7 +57,8 @@ arra() {
 arra mine ~/notes
 ```
 
-Re-running is safe: unchanged files are skipped with deterministic IDs.
+Re-running is safe: unchanged files are skipped with deterministic IDs. Vector
+indexing can stay off; FTS works immediately in SQLite-only mode.
 
 For a clean demo if you do not have notes yet:
 
@@ -80,6 +82,17 @@ curl -sfS "${ARRA_URL}/api/v1/ask" \
 Expected result: JSON with an `answer`, `citations`, and `sources`. Because the
 request sends `"llm": false`, the answer is extractive and local; no provider key
 or vector service is needed.
+
+## Verified command path
+
+The #2420 path was smoke-tested from a clean data volume with a local image built
+from this checkout:
+
+| Step | Evidence |
+| --- | --- |
+| `docker run` | `/api/health` returned OK on the mapped port. |
+| `arra mine ~/notes` | `Mined 1 document from 1 file (0 skipped)` into project `notes`. |
+| `curl /api/v1/ask` | Response had `"noEvidence": false` and cited `two crushed pods per mug`. |
 
 ## Stop or restart later
 
