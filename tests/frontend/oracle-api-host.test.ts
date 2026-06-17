@@ -61,7 +61,7 @@ describe('Studio local Oracle host resolution', () => {
 
     await api.apiFetch('/api/health', { headers: { accept: 'application/json' } });
     expect(String(captured?.input)).toBe('http://localhost:47778/api/health');
-    expect((captured?.init as RequestInit & { targetAddressSpace?: string })?.targetAddressSpace).toBe('local');
+    expect((captured?.init as RequestInit & { targetAddressSpace?: string })?.targetAddressSpace).toBe('loopback');
   });
 
   test('stored host is reused when query param is absent', async () => {
