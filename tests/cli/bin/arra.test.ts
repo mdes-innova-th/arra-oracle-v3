@@ -25,6 +25,14 @@ describe('arra bin argument hardening', () => {
 
     expect(result.code).toBe(0);
     expect(result.stdout).toContain('arra-oracle mcp [--read-only]');
+    expect(result.stdout).toContain('arra-oracle mine <dir> [--watch]');
+  });
+
+  test('delegates mine help without starting the server', async () => {
+    const result = await runBin(['mine', '--help']);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('Usage: arra mine <dir>');
   });
 
   test('rejects unknown mcp options before importing server code', async () => {
@@ -44,5 +52,13 @@ describe('arra bin argument hardening', () => {
     expect(badFlag.stdout).toContain('Serve options:');
     expect(badPort.code).toBe(1);
     expect(badPort.stderr).toContain('--port requires a numeric value');
+  });
+});
+
+describe('published bin aliases', () => {
+  test('exposes arra and arra-oracle commands for global installs', async () => {
+    const pkg = await import('../../../package.json');
+    expect(pkg.default.bin.arra).toBe('./cli/src/cli.ts');
+    expect(pkg.default.bin['arra-oracle']).toBe('./bin/arra.ts');
   });
 });
