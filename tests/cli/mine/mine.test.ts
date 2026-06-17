@@ -6,7 +6,7 @@ import path from 'path';
 import { parseMineArgs } from '../../../src/cli/commands/mine.ts';
 import { createDatabase } from '../../../src/db/index.ts';
 import { oracleDocuments } from '../../../src/db/schema.ts';
-import { chunkMineContent, mineFolder, stableMineDocId, watchMineFolder } from '../../../src/indexer/mine.ts';
+import { mineFolder, stableMineDocId, watchMineFolder } from '../../../src/indexer/mine.ts';
 
 let tempDir = '';
 
@@ -68,6 +68,27 @@ describe('arra mine folder ingest', () => {
     expect(JSON.parse(row?.concepts ?? '[]')).toContain('ops');
   });
 
+  test('stores long notes as deterministic paragraph chunks', async () => {
+    const root = tmp();
+    const dbPath = path.join(root, 'oracle.db');
+    const notes = path.join(root, 'notes');
+    fs.mkdirSync(path.join(notes, 'ops'), { recursive: true });
+    const notePath = path.join(notes, 'ops', 'long.md');
+    const para = (label: string, char: string) => `${label} ${char.repeat(330)}`;
+    fs.writeFileSync(notePath, [para('alpha', 'a'), '', para('beta', 'b'), '', para('gamma', 'c')].join('\n'));
+
+    const first = await mineFolder({ dir: notes, dbPath });
+    const second = await mineFolder({ dir: notes, dbPath });
+
+    expect(first).toMatchObject({ scanned: 1, stored: 2, skipped: 0 });
+    expect(second).toMatchObject({ scanned: 1, stored: 0, skipped: 1 });
+
+    const id = stableMineDocId(notes, notePath);
+    const rows = rowsFor(dbPath, 'mine/notes/ops/long.md');
+    expect(rows.map((row) => row.id)).toEqual([`${id}__chunk_0`, `${id}__chunk_1`]);
+    expect(rows.every((row) => String(row.content).length <= 800)).toBe(true);
+  });
+
   test('handles empty folders and binary-looking text files without storing docs', async () => {
     const root = tmp();
     const dbPath = path.join(root, 'oracle.db');
@@ -85,7 +106,7 @@ describe('arra mine folder ingest', () => {
     expect(rowsFor(dbPath, 'mine/notes/capture.txt')).toEqual([]);
   });
 
-  test('chunks large text files and keeps re-mine idempotent', async () => {
+  test('chunks huge text files and keeps re-mine idempotent', async () => {
     const root = tmp();
     const dbPath = path.join(root, 'oracle.db');
     const notes = path.join(root, 'notes');
@@ -101,17 +122,17 @@ describe('arra mine folder ingest', () => {
     expect(first.stored).toBeGreaterThan(1);
     expect(second).toMatchObject({ scanned: 1, stored: 0, skipped: 1 });
     expect(rows).toHaveLength(first.stored);
-    expect(rows.every((row) => String(row.content).length <= 12_000)).toBe(true);
-    expect(JSON.parse(String(rows[0].concepts))).toEqual(expect.arrayContaining(['big', 'chunk-1']));
+    expect(rows.every((row) => String(row.content).length <= 800)).toBe(true);
+    expect(JSON.parse(String(rows[0].concepts))).toEqual(expect.arrayContaining(['big']));
   });
 
-  test('re-mine removes stale chunks when a large file becomes small', async () => {
+  test('re-mine removes stale chunks when a huge file becomes small', async () => {
     const root = tmp();
     const dbPath = path.join(root, 'oracle.db');
     const notes = path.join(root, 'notes');
     fs.mkdirSync(notes, { recursive: true });
     const note = path.join(notes, 'shrinks.md');
-    fs.writeFileSync(note, chunkMineContent('alpha '.repeat(30_000), 12_000).join('\n\n'), 'utf8');
+    fs.writeFileSync(note, 'alpha '.repeat(30_000), 'utf8');
     const first = await mineFolder({ dir: notes, dbPath });
     expect(first.stored).toBeGreaterThan(1);
 
