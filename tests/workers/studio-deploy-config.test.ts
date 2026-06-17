@@ -17,6 +17,7 @@ describe('Studio Worker deploy config', () => {
 
     expect(config.name).toBe('arra-oracle-studio');
     expect(config.main).toBe('worker.ts');
+    expect(config.account_id).toBe('a5eabdc2b11aae9bd5af46bd6a88179e');
     expect(config.assets).toEqual({
       directory: '../../frontend/dist',
       binding: 'ASSETS',
