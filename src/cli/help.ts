@@ -75,6 +75,13 @@ export const BUILTIN_HELP: CliHelpEntry[] = [
     examples: ["arra-cli completions zsh >> ~/.zshrc", "arra-cli completions fish"],
   },
   {
+    command: "mine",
+    help: "ingest a folder into Oracle memory",
+    usage: "arra-cli mine <dir> [--watch] [--db-path <file>] [--dry-run]",
+    flags: ["--watch", "--db-path <file>", "--dry-run", "--help", "-h"],
+    examples: ["arra-cli mine docs/sample-notes", "arra-cli mine ~/notes --watch"],
+  },
+  {
     command: "huginn",
     help: "run Huginn capture utilities",
     usage: "arra-cli huginn <subcommand>",
