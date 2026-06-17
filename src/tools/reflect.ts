@@ -7,6 +7,8 @@
 import { and, eq, sql, inArray } from 'drizzle-orm';
 import { oracleDocuments } from '../db/schema.ts';
 import { currentTenantId } from '../middleware/tenant.ts';
+import { randomProfilePrinciple } from '../oracles/principles.ts';
+import { parseConcepts } from '../search/query.ts';
 import type { ToolContext, ToolResponse, OracleReflectInput } from './types.ts';
 
 export const reflectToolDef = {
@@ -17,6 +19,10 @@ export const reflectToolDef = {
     properties: {}
   }
 };
+
+function text(payload: unknown): ToolResponse {
+  return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] };
+}
 
 export async function handleReflect(ctx: ToolContext, _input: OracleReflectInput): Promise<ToolResponse> {
   const tenantId = currentTenantId();
@@ -34,7 +40,9 @@ export async function handleReflect(ctx: ToolContext, _input: OracleReflectInput
     .get();
 
   if (!randomDoc) {
-    throw new Error('No documents found in Oracle knowledge base');
+    const fallback = randomProfilePrinciple();
+    if (!fallback) throw new Error('No documents found in Oracle knowledge base');
+    return text({ principle: fallback, knowledge_base_status: 'empty', fallback: 'oracle_profile' });
   }
 
   const content = ctx.sqlite.prepare(`
@@ -54,7 +62,7 @@ export async function handleReflect(ctx: ToolContext, _input: OracleReflectInput
           type: randomDoc.type,
           content: content.content,
           source_file: randomDoc.sourceFile,
-          concepts: JSON.parse(randomDoc.concepts || '[]')
+          concepts: parseConcepts(randomDoc.concepts)
         }
       }, null, 2)
     }]

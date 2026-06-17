@@ -1,6 +1,10 @@
 import { Elysia, t } from 'elysia';
-import { getOracleProfile, listOracleProfiles } from '../../oracles/registry.ts';
+import { getOracleProfile, listOracleProfileCatalog, type OracleProfileSource } from '../../oracles/registry.ts';
 import type { OracleProfile } from '../../oracles/model.ts';
+
+interface OracleProfilesEndpointOptions {
+  profiles?: OracleProfileSource;
+}
 
 function oracleCapabilitySchema() {
   return t.Object({
@@ -27,39 +31,58 @@ export function oracleProfileSchema() {
   });
 }
 
+function issueSchema() {
+  return t.Object({
+    index: t.Number(),
+    id: t.Optional(t.String()),
+    slug: t.Optional(t.String()),
+    reason: t.String(),
+  });
+}
+
 function profileChoice(profile: OracleProfile) {
   return { id: profile.id, slug: profile.slug, name: profile.name };
 }
 
-function sortedProfiles(): OracleProfile[] {
-  return listOracleProfiles().sort((left, right) => left.slug.localeCompare(right.slug));
+function catalog(options: OracleProfilesEndpointOptions) {
+  return listOracleProfileCatalog(options.profiles);
+}
+
+function withIssues<T extends Record<string, unknown>>(body: T, invalidProfiles: unknown[]) {
+  return invalidProfiles.length ? { ...body, invalidProfiles } : body;
 }
 
 function profilesResponseSchema() {
-  return t.Object({ profiles: t.Array(oracleProfileSchema()), total: t.Number() });
+  return t.Object({
+    profiles: t.Array(oracleProfileSchema()),
+    total: t.Number(),
+    invalidProfiles: t.Optional(t.Array(issueSchema())),
+  });
 }
 
 const notFoundSchema = t.Object({
   error: t.String(),
   requested: t.String(),
   profiles: t.Array(t.Object({ id: t.String(), slug: t.String(), name: t.String() })),
+  invalidProfiles: t.Optional(t.Array(issueSchema())),
 });
 
-export function createOracleProfilesEndpoint() {
+export function createOracleProfilesEndpoint(options: OracleProfilesEndpointOptions = {}) {
   return new Elysia()
     .get('/oracles/profiles', () => {
-      const profiles = sortedProfiles();
-      return { profiles, total: profiles.length };
+      const { profiles, invalidProfiles } = catalog(options);
+      return withIssues({ profiles, total: profiles.length }, invalidProfiles);
     }, {
       response: profilesResponseSchema(),
       detail: { tags: ['health'], menu: { group: 'hidden' }, summary: 'List code-backed Oracle profiles' },
     })
     .get('/oracles/profiles/:slug', ({ params, set }) => {
       const requested = params.slug.trim();
-      const profile = getOracleProfile(requested);
+      const profile = getOracleProfile(requested, options.profiles);
       if (!profile) {
+        const { profiles, invalidProfiles } = catalog(options);
         set.status = 404;
-        return { error: 'Oracle profile not found', requested: params.slug, profiles: sortedProfiles().map(profileChoice) };
+        return withIssues({ error: 'Oracle profile not found', requested: params.slug, profiles: profiles.map(profileChoice) }, invalidProfiles);
       }
       return profile;
     }, {

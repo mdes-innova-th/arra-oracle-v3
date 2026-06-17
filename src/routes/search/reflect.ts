@@ -6,8 +6,16 @@ import { Elysia } from 'elysia';
 import { isDbLockError, sqlite } from '../../db/index.ts';
 import { parseConcepts } from '../../search/query.ts';
 import { handleTenantReflect } from './tenant-search.ts';
+import { randomProfilePrinciple } from '../../oracles/principles.ts';
 
 type ReflectRow = { id: string; type: string; source_file: string; concepts: string | null; content: string | null };
+
+export function emptyKnowledgeReflectResponse(): Record<string, unknown> {
+  const fallback = randomProfilePrinciple();
+  return fallback
+    ? { ...fallback, error: 'No documents found', fts_status: 'empty', fallback: 'oracle_profile' }
+    : { error: 'No documents found', fts_status: 'empty' };
+}
 
 function handleGlobalReflect(): Record<string, unknown> {
   try {
@@ -20,7 +28,7 @@ function handleGlobalReflect(): Record<string, unknown> {
       LIMIT 1
     `).get() as ReflectRow | undefined;
 
-    if (!row) return { error: 'No documents found', fts_status: 'empty' };
+    if (!row) return emptyKnowledgeReflectResponse();
     const base = {
       id: row.id,
       type: row.type,

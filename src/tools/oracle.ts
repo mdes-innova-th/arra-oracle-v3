@@ -1,4 +1,4 @@
-import { getOracleProfile, listOracleProfiles } from '../oracles/registry.ts';
+import { getOracleProfile, listOracleProfileCatalog } from '../oracles/registry.ts';
 import { handleLearn } from './learn.ts';
 import { buildResearchNoteLearning } from '../research/note.ts';
 import type { DistillTraceInput } from '../trace/types.ts';
@@ -63,7 +63,14 @@ export const oracleResearchNoteToolDef = {
 };
 
 export function handleOracleProfile(input: { id?: string }): ToolResponse {
-  if (!input?.id) return text({ profiles: listOracleProfiles(), total: listOracleProfiles().length });
+  const catalog = listOracleProfileCatalog();
+  if (!input?.id) {
+    return text({
+      profiles: catalog.profiles,
+      total: catalog.profiles.length,
+      ...(catalog.invalidProfiles.length ? { invalidProfiles: catalog.invalidProfiles } : {}),
+    });
+  }
   const profile = getOracleProfile(input.id);
   return profile ? text(profile) : text({ success: false, error: `Oracle profile not found: ${input.id}` }, true);
 }

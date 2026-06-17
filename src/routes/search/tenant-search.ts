@@ -5,6 +5,7 @@ import { isoTimestamp } from '../../search/timestamp.ts';
 import { logDocumentAccess } from '../../server/logging.ts';
 import type { SearchResponse } from '../../server/types.ts';
 import { buildTenantFtsQuery, parseConcepts } from '../../search/query.ts';
+import { randomProfilePrinciple } from '../../oracles/principles.ts';
 
 type SearchRouteResponse = SearchResponse & { mode: string; warning?: string; vectorAvailable: boolean };
 type ListRow = Record<string, any>;
@@ -130,7 +131,12 @@ export function handleTenantReflect(): Record<string, unknown> | null {
     LIMIT 1
   `).get(tenantId) as ListRow | undefined;
 
-  if (!row) return { error: 'No documents found', fts_status: 'empty' };
+  if (!row) {
+    const fallback = randomProfilePrinciple();
+    return fallback
+      ? { ...fallback, error: 'No documents found', fts_status: 'empty', fallback: 'oracle_profile' }
+      : { error: 'No documents found', fts_status: 'empty' };
+  }
   if (!row.content) {
     return {
       error: 'Document content not found in FTS index',
