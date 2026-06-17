@@ -5,6 +5,7 @@ export type StudioEnv = {
   ORACLE_URL?: string;
   ORACLE_HTTP_URL?: string;
   ORACLE_API?: string;
+  ORACLE_MCP_URL?: string;
   ARRA_API_TOKEN?: string;
   ARRA_API_KEY?: string;
 };

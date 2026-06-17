@@ -117,7 +117,7 @@ describe('Cloudflare deploy metadata', () => {
     const cfg = parseJsonc<Record<string, any>>(read('workers/studio/wrangler.jsonc'));
 
     expect(cfg.name).toBe('arra-oracle-studio');
-    expect(cfg.main).toBe('src/index.ts');
+    expect(cfg.main).toBe('worker.ts');
     expect(cfg.workers_dev).toBe(true);
     expect(cfg.assets).toMatchObject({
       directory: '../../frontend/dist',
@@ -125,7 +125,10 @@ describe('Cloudflare deploy metadata', () => {
       not_found_handling: 'single-page-application',
       run_worker_first: true,
     });
-    expect(cfg.vars).toMatchObject({ ORACLE_URL: expect.stringContaining('replace-with-your-oracle-backend') });
+    expect(cfg.vars).toMatchObject({
+      ORACLE_URL: expect.stringContaining('replace-with-your-oracle-backend'),
+      ORACLE_MCP_URL: 'https://arra-oracle-mcp.laris.workers.dev/mcp',
+    });
   });
 
   test('README deploy buttons use canonical Cloudflare Workers URLs', () => {
