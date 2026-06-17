@@ -9,6 +9,7 @@ describe('Simple page', () => {
       const html = htmlFor(<App />);
       expect(html).toContain('Simple mode');
       expect(html).toContain('Starting up…');
+      expect(html).toContain('Save something to memory');
       expect(html).not.toContain('Control Surface');
       expect(html).not.toContain('Backend unavailable');
     } finally {
