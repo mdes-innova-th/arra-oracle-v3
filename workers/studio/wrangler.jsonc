@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
-  "name": "oracle-studio-worker",
+  "name": "arra-oracle-studio",
   "main": "worker.ts",
   "compatibility_date": "2026-05-07",
   "workers_dev": true,
@@ -13,6 +13,6 @@
   },
   "vars": {
     "ORACLE_URL": "https://replace-with-your-oracle-backend.example.com",
-    "ORACLE_MCP_URL": "https://arra-oracle-mcp.laris.workers.dev"
+    "ORACLE_MCP_URL": "https://arra-oracle-mcp.laris.workers.dev/mcp"
   }
 }

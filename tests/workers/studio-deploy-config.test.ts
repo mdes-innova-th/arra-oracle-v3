@@ -10,10 +10,10 @@ function parseJsonc<T>(source: string): T {
 }
 
 describe('Studio Worker deploy config', () => {
-  test('copies the ui-oracle Workers Static Assets pattern', () => {
+  test('serves the Vite frontend with Workers Static Assets before fallback', () => {
     const cfg = parseJsonc<Record<string, any>>(read('workers/studio/wrangler.jsonc'));
 
-    expect(cfg.name).toBe('oracle-studio-worker');
+    expect(cfg.name).toBe('arra-oracle-studio');
     expect(cfg.main).toBe('worker.ts');
     expect(cfg.workers_dev).toBe(true);
     expect(cfg.assets).toEqual({
@@ -22,8 +22,13 @@ describe('Studio Worker deploy config', () => {
       not_found_handling: 'single-page-application',
       run_worker_first: true,
     });
+  });
+
+  test('keeps frontend API proxy URLs configurable', () => {
+    const cfg = parseJsonc<Record<string, any>>(read('workers/studio/wrangler.jsonc'));
+
     expect(cfg.vars.ORACLE_URL).toContain('replace-with-your-oracle-backend');
-    expect(cfg.vars.ORACLE_MCP_URL).toContain('arra-oracle-mcp.laris.workers.dev');
+    expect(cfg.vars.ORACLE_MCP_URL).toBe('https://arra-oracle-mcp.laris.workers.dev/mcp');
   });
 
   test('package scripts build the frontend before deploy and dry-run', () => {
