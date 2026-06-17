@@ -7,6 +7,7 @@ import path from 'path';
 import type Database from 'bun:sqlite';
 import type { OracleDocument } from '../types.ts';
 import { parseLearningFile } from './parser.ts';
+import { chunkDocumentsForIndexing } from './chunk-text.ts';
 
 export const PSI_LEARN_REL = path.join('ψ', 'learn');
 export const MEMORY_LEARN_REL = path.join('ψ', 'memory', 'learnings');
@@ -66,6 +67,7 @@ export const readPsiLearnDocuments = readLearningDocuments;
 
 export function storeSqliteDocuments(db: Database, documents: OracleDocument[]): string[] {
   if (documents.length === 0) return [];
+  const storedDocuments = chunkDocumentsForIndexing(documents);
   const now = Date.now();
   const upsertDoc = db.prepare(`
     INSERT INTO oracle_documents
@@ -87,7 +89,7 @@ export function storeSqliteDocuments(db: Database, documents: OracleDocument[]):
 
   db.exec('BEGIN');
   try {
-    for (const doc of documents) {
+    for (const doc of storedDocuments) {
       upsertDoc.run(
         doc.id,
         doc.type,
@@ -106,5 +108,5 @@ export function storeSqliteDocuments(db: Database, documents: OracleDocument[]):
     db.exec('ROLLBACK');
     throw error;
   }
-  return documents.map((doc) => doc.id);
+  return storedDocuments.map((doc) => doc.id);
 }
