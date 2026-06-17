@@ -1,30 +1,30 @@
 import { rerankCandidates } from '../src/server/reranker.ts';
 import type { BenchmarkMode, Searcher, SearchHit } from './honest-recall.ts';
 
-const RERANK_RETRIEVE_K = 100;
 const RERANK_MODEL = 'bge-reranker-v2-m3';
 
 export type RerankOptions = { enabled?: boolean; url?: string; timeoutMs?: number };
 export type RerankStage = { enabled: boolean; model?: string; retrieve_k?: number; applied: boolean; fallback_reason?: string };
 
-export function rerankStage(enabled: boolean): RerankStage {
-  return enabled ? { enabled: true, model: RERANK_MODEL, retrieve_k: RERANK_RETRIEVE_K, applied: false } : { enabled: false, applied: false };
+export function rerankStage(enabled: boolean, retrieveDepth: number): RerankStage {
+  return enabled ? { enabled: true, model: RERANK_MODEL, retrieve_k: retrieveDepth, applied: false } : { enabled: false, applied: false };
 }
 
 export async function searchWithOptionalRerank(input: {
   searcher: Searcher;
   query: string;
   topK: number;
+  retrieveDepth: number;
   mode: BenchmarkMode;
   model: string;
   rerank?: RerankOptions;
   stage: RerankStage;
 }): Promise<SearchHit[]> {
   if (!input.rerank?.enabled) {
-    return (await input.searcher(input)).slice(0, input.topK);
+    return (await input.searcher({ query: input.query, topK: input.retrieveDepth, mode: input.mode, model: input.model })).slice(0, input.topK);
   }
 
-  const candidates = await input.searcher({ ...input, topK: Math.max(RERANK_RETRIEVE_K, input.topK) });
+  const candidates = await input.searcher({ query: input.query, topK: input.retrieveDepth, mode: input.mode, model: input.model });
   const reranked = await rerankCandidates({
     query: input.query,
     candidates,
