@@ -98,7 +98,7 @@ function renderRecap(
   const lines = [
     '# Oracle wake-up context',
     `Identity: ${MCP_SERVER_NAME} v${ctx.version}; vector=${ctx.vectorStatus}; tenant=${tenantId ?? 'default'}; docs=${total}.`,
-    'Role: MCP memory/search layer. Start with oracle_search for recall, oracle_read for exact source, oracle_learn for new durable facts.',
+    'Role: MCP memory/search layer. Non-devs open http://localhost:47778/simple; agents use oracle_search, oracle_read, oracle_learn.',
     `Budget: approx ${tokenPlaceholder} / ${maxTokens} tokens; ranked by heat + confidence.`,
   ];
   if (rows.length === 0) lines.push('', 'No memories indexed yet. Ingest with `arra mine <dir>` or add facts with `oracle_learn`.');

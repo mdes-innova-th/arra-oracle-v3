@@ -57,7 +57,7 @@ bunx tsc --noEmit
 bun run server                 # HTTP API on http://localhost:47778
 ```
 
-Useful checks: `curl -sf http://localhost:47778/api/health` and `bun cli/src/cli.ts health`. React UI: `cd frontend && bun install && bun run dev`. Tauri: `cd frontend && cargo tauri dev`.
+Useful checks: `curl -sf http://localhost:47778/api/health` and `bun cli/src/cli.ts health`. Non-dev UI: open `http://localhost:47778/simple` for Simple Mode. React dev UI: `cd frontend && bun install && bun run dev`. Tauri: `cd frontend && cargo tauri dev`.
 
 ## Major features
 
@@ -74,6 +74,7 @@ Useful checks: `curl -sf http://localhost:47778/api/health` and `bun cli/src/cli
 | Multi-tenant HTTP isolation | Tenant headers and optional tenant tokens scope reads/writes by `tenant_id` for shared HTTP deployments. |
 | Federation | Opt-in `/api/federation/*` mesh capability provider for registered nodes, capability discovery, Workers relay smoke, and signed tunnel workflows. |
 | Studio + canvas UI | React/Tauri Studio plus `canvas.buildwithoracle.com` workers render search, vectors, plugins, MCP tools, and canvas plugins. |
+| Simple Mode | `/simple` is the non-dev first screen: health always visible, search/save obvious, advanced Studio optional. |
 
 ## Architecture overview
 
