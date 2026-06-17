@@ -5,6 +5,8 @@ const REPO_URL = 'https://github.com/Soul-Brews-Studio/arra-oracle-v3';
 const BUTTON_IMAGE = 'https://deploy.workers.cloudflare.com/button';
 const BUTTON_URL = `https://deploy.workers.cloudflare.com/?url=${REPO_URL}`;
 const BUTTON_MARKDOWN = `[![Deploy to Cloudflare](${BUTTON_IMAGE})](${BUTTON_URL})`;
+const STUDIO_BUTTON_LABEL = 'Deploy Studio Worker to Cloudflare';
+const STUDIO_BUTTON_URL = `${BUTTON_URL}/tree/alpha/workers/studio`;
 
 function read(path: string): string {
   return readFileSync(path, 'utf8');
@@ -76,14 +78,37 @@ describe('Cloudflare deploy metadata', () => {
     });
   });
 
-  test('README deploy button uses the canonical Cloudflare Workers URL', () => {
-    const readme = read('README.md');
-    const matches = readme.match(/\[!\[Deploy to Cloudflare\]\(([^)]+)\)\]\(([^)]+)\)/g) ?? [];
-    expect(matches).toEqual([BUTTON_MARKDOWN]);
 
-    const target = new URL(BUTTON_URL);
-    expect(target.origin).toBe('https://deploy.workers.cloudflare.com');
-    expect(target.searchParams.get('url')).toBe(REPO_URL);
-    expect(readme).toContain(`[![Deploy to Cloudflare](${BUTTON_IMAGE})]`);
+  test('studio wrangler config serves frontend dist through Workers Static Assets', () => {
+    const cfg = parseJsonc<Record<string, any>>(read('workers/studio/wrangler.jsonc'));
+
+    expect(cfg.name).toBe('arra-oracle-studio');
+    expect(cfg.main).toBe('src/index.ts');
+    expect(cfg.workers_dev).toBe(true);
+    expect(cfg.assets).toMatchObject({
+      directory: '../../frontend/dist',
+      binding: 'ASSETS',
+      not_found_handling: 'single-page-application',
+      run_worker_first: true,
+    });
+    expect(cfg.vars).toMatchObject({ ORACLE_URL: expect.stringContaining('replace-with-your-oracle-backend') });
+  });
+
+  test('README deploy buttons use canonical Cloudflare Workers URLs', () => {
+    const readme = read('README.md');
+    const buttons = [...readme.matchAll(/\[!\[([^\]]+)\]\(([^)]+)\)\]\(([^)]+)\)/g)]
+      .filter(([, , image]) => image === BUTTON_IMAGE);
+
+    expect(buttons.map(([, label, , url]) => [label, url])).toEqual([
+      ['Deploy to Cloudflare', BUTTON_URL],
+      [STUDIO_BUTTON_LABEL, STUDIO_BUTTON_URL],
+    ]);
+
+    for (const [, , , url] of buttons) {
+      const target = new URL(url);
+      expect(target.origin).toBe('https://deploy.workers.cloudflare.com');
+      expect(target.searchParams.get('url')?.startsWith(REPO_URL)).toBe(true);
+    }
+    expect(readme).toContain(BUTTON_MARKDOWN);
   });
 });
