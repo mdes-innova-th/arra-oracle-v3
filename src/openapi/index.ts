@@ -1,5 +1,6 @@
 import type { ElysiaSwaggerConfig } from '@elysiajs/swagger';
 import pkg from '../../package.json' with { type: 'json' };
+import { documentMemoryOpenApi } from './memory.ts';
 
 export const OPENAPI_INTERNAL_SPEC_PATH = '/api/docs/__raw.json';
 
@@ -95,6 +96,7 @@ export function documentOpenApiSpec(raw: Spec, routes: RouteLike[] = []): Spec {
       if (op) completeOperation(op, method, path, spec.components);
     }
   }
+  documentMemoryOpenApi(spec);
   spec.tags = mergeTags(spec.tags, spec.paths);
   return spec;
 }
