@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../api/oracle';
 import { HealthHero } from '../components/HealthHero';
+import { AddMemory } from '../components/simple/AddMemory';
 import { HealthState, mapHealthState, type SimpleHealthPayload } from '../components/simple/healthState';
 
 async function fetchHealth(): Promise<SimpleHealthPayload> {
@@ -36,8 +37,9 @@ export function SimplePage() {
 
   return (
     <main className="min-h-screen bg-field p-6 text-text">
-      <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-5xl items-center">
+      <div className="mx-auto grid max-w-5xl gap-5 py-6">
         <HealthHero state={state} checkedAt={checkedAt} onAction={poll} />
+        <AddMemory />
       </div>
     </main>
   );
