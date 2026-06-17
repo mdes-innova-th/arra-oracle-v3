@@ -76,13 +76,16 @@ function isValidTenantId(tenantId: string): boolean {
 function tenantIdFromApiKey(headers: Headers, apiKeys = parseTenantApiKeys()): string | undefined {
   const actual = headers.get(TENANT_API_KEY_HEADER)?.trim() || bearerToken(headers);
   if (!actual) return undefined;
+  let hasTenantScopedKey = false;
   for (const [tenantId, expected] of Object.entries(apiKeys)) {
     if (tenantId === '*') continue;
+    hasTenantScopedKey = true;
     if (expected && safeEqual(actual, expected)) {
       if (!isValidTenantId(tenantId)) throw new Error('invalid tenant id');
       return tenantId;
     }
   }
+  if (hasTenantScopedKey) throw new Error('invalid tenant api key');
   return undefined;
 }
 
@@ -152,6 +155,10 @@ export function runWithTenant<T>(tenantId: string | undefined, callback: () => T
   return tenantStore.run({ tenantId }, callback);
 }
 
+function enterTenantContext(tenantId: string | undefined): void {
+  tenantStore.enterWith({ tenantId });
+}
+
 export function tenantProjectWhere<T extends ProjectColumn>(table: T): SQL | undefined {
   const tenantId = currentTenantId();
   return tenantId ? eq(table.project as never, tenantId) : undefined;
@@ -162,9 +169,11 @@ export function createTenantMiddleware() {
     .derive({ as: 'global' }, ({ request, set }) => {
       try {
         const tenantId = tenantIdFor(request);
+        enterTenantContext(tenantId);
         if (tenantId) set.headers[TENANT_HEADER] = tenantId;
         return { tenantId };
       } catch (error) {
+        enterTenantContext(undefined);
         set.status = 400;
         return { tenantId: undefined, tenantError: error instanceof Error ? error.message : String(error) };
       }
@@ -174,8 +183,9 @@ export function createTenantMiddleware() {
     })
     .onRequest(({ request }) => {
       try {
-        tenantIdFor(request);
+        enterTenantContext(tenantIdFor(request));
       } catch {
+        enterTenantContext(undefined);
         // derive returns the structured 400 tenant error response.
       }
     });
