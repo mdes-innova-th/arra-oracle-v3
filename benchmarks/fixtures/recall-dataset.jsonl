@@ -1,0 +1,40 @@
+{"id":"quickstart/install-bun-global","query":"install Arra Oracle globally with Bun and verify the arra command is on PATH","expectedIds":["pub-quickstart-install"]}
+{"id":"quickstart/bunx-mine","query":"one line bunx command to mine sample notes without a prior global install","expectedIds":["pub-quickstart-bunx-mine"]}
+{"id":"quickstart/start-server","query":"start the local Oracle HTTP server on port 47778","expectedIds":["pub-quickstart-server"]}
+{"id":"quickstart/health-check","query":"check local backend health endpoint before using Studio","expectedIds":["pub-quickstart-health"]}
+{"id":"quickstart/sample-notes","query":"mine the docs sample notes corpus for the first searchable memories","expectedIds":["pub-quickstart-sample-notes"]}
+{"id":"quickstart/watch-folder","query":"keep re-ingesting a notes folder when files change","expectedIds":["pub-mine-watch"]}
+{"id":"quickstart/search-memory","query":"search memories for memory onboarding after mining notes","expectedIds":["pub-quickstart-search"]}
+{"id":"quickstart/mcp-config","query":"connect Claude Desktop MCP to local Arra Oracle server command and HTTP URL","expectedIds":["pub-quickstart-mcp"]}
+{"id":"mine/deterministic-ids","query":"folder ingest should use deterministic document ids for safe repeated runs","expectedIds":["pub-mine-idempotent"]}
+{"id":"mine/version-skip","query":"skip unchanged files on a second mine run using content version gates","expectedIds":["pub-mine-idempotent"]}
+{"id":"mine/default-extensions","query":"which file extensions are indexed by the mine folder command by default","expectedIds":["pub-mine-defaults"]}
+{"id":"mine/ignore-build-folders","query":"folder ingest should skip node_modules git dist and build directories","expectedIds":["pub-mine-defaults"]}
+{"id":"mine/project-concepts","query":"derive project name and folder concepts automatically during folder ingest","expectedIds":["pub-mine-concepts"]}
+{"id":"simple/health-hero-purpose","query":"Simple Mode should always show backend health instead of failing silently","expectedIds":["pub-simple-health-hero"]}
+{"id":"simple/healthy-copy","query":"health state copy for an awake Oracle that is ready to remember","expectedIds":["pub-simple-health-copy"]}
+{"id":"simple/starting-timing","query":"starting state waits briefly then escapes after thirty seconds","expectedIds":["pub-simple-health-timing"]}
+{"id":"simple/down-retry","query":"three failed health polls should flip Simple Mode to down","expectedIds":["pub-simple-health-timing"]}
+{"id":"simple/degraded-fts","query":"server reachable but search is limited because vector or FTS is unavailable","expectedIds":["pub-simple-health-degraded"]}
+{"id":"simple/degraded-db","query":"database unhealthy should show memory storage needs help","expectedIds":["pub-simple-health-degraded"]}
+{"id":"simple/degraded-plugin","query":"plugin degraded but core memory still available","expectedIds":["pub-simple-health-degraded"]}
+{"id":"cors/studio-workers","query":"hosted workers dev Studio origin must be allowed by local backend CORS","expectedIds":["pub-cors-hosted-studio"]}
+{"id":"cors/studio-domain","query":"studio.buildwithoracle.com should get Access-Control-Allow-Origin echoed","expectedIds":["pub-cors-hosted-studio"]}
+{"id":"cors/private-network","query":"preflight private network request should allow localhost browser access","expectedIds":["pub-cors-private-network"]}
+{"id":"cors/tenant-headers","query":"CORS preflight allows tenant token API key and organization headers","expectedIds":["pub-cors-tenant-headers"]}
+{"id":"memory/stats-endpoint","query":"memory stats endpoint exposes heat distribution confidence histogram and supersede depth","expectedIds":["pub-memory-stats"]}
+{"id":"memory/valid-time","query":"valid time coverage appears in memory metrics for temporal memories","expectedIds":["pub-memory-stats"]}
+{"id":"memory/ttl-decay","query":"stale memories can expire with valid until and auto supersede off the write path","expectedIds":["pub-memory-ttl"]}
+{"id":"memory/consolidation","query":"deduplicate near duplicate memories by superseding lower confidence lower heat entries","expectedIds":["pub-memory-consolidation"]}
+{"id":"memory/entity-sidecar","query":"entity linking writes extracted entities into a sidecar vector collection","expectedIds":["pub-memory-entities"]}
+{"id":"memory/ask-dialectic","query":"ask endpoint synthesizes cited answers and flags no evidence","expectedIds":["pub-memory-ask"]}
+{"id":"vector/sidecar-contract","query":"backend proxies vector operations to a separate LanceDB or Qdrant sidecar process","expectedIds":["pub-vector-sidecar"]}
+{"id":"vector/preflight","query":"serve time vector URL preflight reports vectorMode and vectorAvailable in health","expectedIds":["pub-vector-preflight"]}
+{"id":"vector/proxy-script","query":"bun run vector proxy starts a standalone vector server for the backend adapter","expectedIds":["pub-vector-proxy-script"]}
+{"id":"storage/tenant-isolation","query":"two tenants using the same endpoint should not see each other's memory data","expectedIds":["pub-storage-tenant-isolation"]}
+{"id":"storage/read-only","query":"read only SQLite storage should reject writes and fail fast for missing databases","expectedIds":["pub-storage-readonly"]}
+{"id":"storage/migration-repair","query":"partial migration repair should keep schema integrity without destructive inline SQL","expectedIds":["pub-storage-migration-repair"]}
+{"id":"plugins/install","query":"install a CLI plugin from a GitHub repository or local path with manifest validation","expectedIds":["pub-plugin-install"]}
+{"id":"plugins/toggle","query":"enable and disable MCP tool plugins through the CLI manifest commands","expectedIds":["pub-plugin-toggle"]}
+{"id":"benchmarks/guard-topk","query":"honest recall benchmark refuses to report when top k covers the whole corpus","expectedIds":["pub-benchmark-guard-topk"]}
+{"id":"benchmarks/answer-accuracy","query":"recall harness reports Answer Accuracy as not measured separate from Recall at k","expectedIds":["pub-benchmark-metric-separation"]}
