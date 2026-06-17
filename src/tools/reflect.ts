@@ -7,6 +7,7 @@
 import { and, eq, sql, inArray } from 'drizzle-orm';
 import { oracleDocuments } from '../db/schema.ts';
 import { currentTenantId } from '../middleware/tenant.ts';
+import { parseConcepts } from '../search/query.ts';
 import type { ToolContext, ToolResponse, OracleReflectInput } from './types.ts';
 
 export const reflectToolDef = {
@@ -54,7 +55,7 @@ export async function handleReflect(ctx: ToolContext, _input: OracleReflectInput
           type: randomDoc.type,
           content: content.content,
           source_file: randomDoc.sourceFile,
-          concepts: JSON.parse(randomDoc.concepts || '[]')
+          concepts: parseConcepts(randomDoc.concepts)
         }
       }, null, 2)
     }]
