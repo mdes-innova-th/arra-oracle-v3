@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { searchVector } from '../api';
+import { searchMemoryHealth } from '../api';
 import { MemoryDashboardInsights } from '../components/MemoryDashboardInsights';
 import { MemoryHealthPanel } from '../components/MemoryHealthPanel';
 import { SearchResultCard } from '../components/SearchResultCard';
@@ -30,7 +30,7 @@ function MemoryRouteLinks() {
   );
 }
 
-export function MemoryPage({ search = searchVector }: { search?: MemorySearch }) {
+export function MemoryPage({ search = searchMemoryHealth }: { search?: MemorySearch }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const routeQuery = searchParams.get('q') ?? '';
