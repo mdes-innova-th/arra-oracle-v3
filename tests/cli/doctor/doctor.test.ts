@@ -16,7 +16,20 @@ function startDoctorServer(options: { healthStatus?: number; statsStatus?: numbe
     fetch(req) {
       const url = new URL(req.url);
       if (url.pathname === "/api/health") {
-        return Response.json({ status: "ok", server: "doctor-test", version: "test", port: Number(url.port), oracle: "connected" }, { status: options.healthStatus ?? 200 });
+        return Response.json({
+          status: "ok",
+          healthStatus: "healthy",
+          server: "doctor-test",
+          version: "test",
+          port: Number(url.port),
+          oracle: "connected",
+          subsystems: {
+            database: { status: "healthy", label: "DB writable", critical: true, detail: "SQLite writable" },
+            fts: { status: "healthy", label: "FTS healthy", critical: true, detail: "FTS ready" },
+            vector: { status: "healthy", label: "vector backend", critical: true, detail: "vector ready" },
+            embedder: { status: "healthy", label: "embedder reachable", critical: true, detail: "embedder ready" },
+          },
+        }, { status: options.healthStatus ?? 200 });
       }
       if (url.pathname === "/api/stats") {
         return Response.json({ total: 42, vector: { enabled: true, adapter: "lancedb", count: 7, collection: "oracle_knowledge" } }, { status: options.statsStatus ?? 200 });
@@ -54,10 +67,10 @@ describe("arra doctor", () => {
 
     expect(report.ok).toBe(true);
     expect(report.resolved.source).toBe("global");
-    expect(report.checks.find(c => c.id === "server.health")?.status).toBe("pass");
-    expect(report.checks.find(c => c.id === "db.stats")?.detail).toContain("documents=42");
-    expect(report.checks.find(c => c.id === "vector.stats")?.detail).toContain("adapter=lancedb");
-    expect(report.checks.find(c => c.id === "mcp.mode")?.detail).toContain("HTTP proxy mode");
+    expect(report.checks.find(c => c.id === "backend.reachable")?.status).toBe("pass");
+    expect(report.checks.find(c => c.id === "db.writable")?.status).toBe("pass");
+    expect(report.checks.find(c => c.id === "fts.healthy")?.status).toBe("pass");
+    expect(report.checks.find(c => c.id === "vector.backend")?.detail).toContain("vector ready");
   });
 
   test("runDoctor fails when a critical server check fails", async () => {
@@ -69,7 +82,7 @@ describe("arra doctor", () => {
     });
 
     expect(report.ok).toBe(false);
-    expect(report.checks.find(c => c.id === "server.health")?.status).toBe("fail");
+    expect(report.checks.find(c => c.id === "backend.reachable")?.status).toBe("fail");
   });
 
   test("CLI --json emits structured report and exits 0 when healthy", async () => {
@@ -84,7 +97,7 @@ describe("arra doctor", () => {
     expect(result.code).toBe(0);
     const data = tryParseJson(result.stdout) as { ok: boolean; checks: Array<{ id: string; status: string }> } | null;
     expect(data?.ok).toBe(true);
-    expect(data?.checks.some(c => c.id === "vector.stats" && c.status === "pass")).toBe(true);
+    expect(data?.checks.some(c => c.id === "vector.backend" && c.status === "pass")).toBe(true);
   }, 15_000);
 
   test("CLI exits non-zero when a critical probe fails", async () => {
@@ -112,8 +125,8 @@ describe("arra doctor", () => {
 
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("ARRA Doctor");
-    expect(result.stdout).toContain("✓ resolved API target");
-    expect(result.stdout).toContain("✓ server reachable");
-    expect(result.stdout).toContain("✓ vector adapter stats");
+    expect(result.stdout).toContain("PASS resolved API target");
+    expect(result.stdout).toContain("PASS backend reachable");
+    expect(result.stdout).toContain("PASS vector backend");
   }, 15_000);
 });
