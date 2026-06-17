@@ -11,6 +11,9 @@ describe('Simple page', () => {
       expect(html).toContain('Starting up…');
       expect(html).toContain('Save something to memory');
       expect(html).toContain('Add a whole folder of notes');
+      expect(html).toContain('href="/"');
+      expect(html).toContain('Advanced Studio');
+      expect(html).toContain('Arra Oracle v');
       expect(html).not.toContain('Control Surface');
       expect(html).not.toContain('Backend unavailable');
     } finally {
