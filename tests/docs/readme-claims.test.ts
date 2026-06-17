@@ -116,6 +116,7 @@ describe('README/docs advertised claims', () => {
   test('advertised MCP core tool count and names match the manifest and HTTP browser', async () => {
     expect(coreMcpToolNames).toHaveLength(28);
     expect(coreMcpToolNames).toContain('oracle_search');
+    expect(coreMcpToolNames).toContain('oracle_recap');
     expect(coreMcpToolNames).toContain('oracle_trace_distill');
 
     const response = await fetchClaim!(new Request('http://local/api/v1/mcp/tools'));
