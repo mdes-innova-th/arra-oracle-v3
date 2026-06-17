@@ -16,6 +16,7 @@ import { defaultUnifiedPluginDirs, loadUnifiedPlugins, seedUnifiedPluginMenuItem
 import { startUnifiedPluginServers } from './plugins/unified-server.ts';
 import { closeCachedVectorStores } from './vector/factory.ts';
 import { warmEmbeddingProviderDetection } from './vector/provider-detection.ts';
+import { preflightVectorRuntime, type VectorPreflightStatus } from './vector/preflight.ts';
 import { drainingResponseFor, isDraining, registerGracefulShutdown, runShutdownSteps, trackRequest } from './lifecycle/shutdown.ts';
 import { createErrorMiddleware } from './middleware/errors.ts';
 import { validateStartupEnv } from './config/validate.ts';
@@ -75,9 +76,10 @@ export interface CreateAppOptions {
   unifiedPlugins: UnifiedRuntime;
   dataDir?: string;
   vectorUrl?: string;
+  vectorPreflight?: VectorPreflightStatus;
 }
 
-export function createApp({ unifiedPlugins, dataDir = ORACLE_DATA_DIR, vectorUrl = VECTOR_URL }: CreateAppOptions) {
+export function createApp({ unifiedPlugins, dataDir = ORACLE_DATA_DIR, vectorUrl = VECTOR_URL, vectorPreflight }: CreateAppOptions) {
   const app = new Elysia()
     .use(createRequestLoggingMiddleware())
     .use(createCorrelationMiddleware())
@@ -110,7 +112,7 @@ export function createApp({ unifiedPlugins, dataDir = ORACLE_DATA_DIR, vectorUrl
     .get('/api/openapi.json', () => Response.redirect('/api/docs/json', 308), { detail: { hide: true } })
     .get('/', () => ({ server: MCP_SERVER_NAME, version: pkg.version, status: 'ok', docs: '/api/docs', api: '/api/v1' }));
 
-  const healthRoutes = createHealthRoutes({ pluginCount: unifiedPlugins.pluginCount, pluginMcpToolCount: unifiedPlugins.mcpTools.length, pluginStatuses: unifiedPlugins.pluginStatuses, isDraining });
+  const healthRoutes = createHealthRoutes({ pluginCount: unifiedPlugins.pluginCount, pluginMcpToolCount: unifiedPlugins.mcpTools.length, pluginStatuses: unifiedPlugins.pluginStatuses, isDraining, vectorPreflight });
   const apiModules = [authRoutes, settingsRoutes, feedRoutes, healthRoutes, dashboardRoutes, searchRoutes, vectorRoutes, vectorConfigApiRoutes, conceptsRoutes, knowledgeRoutes, verifyRoutes, supersedeRoutes, forumApi, tracesApi, scheduleApi, filesRouter, createPluginsRouter({ registry: unifiedPlugins.pluginRegistry, runtime: unifiedPlugins }), sessionsRoutes, vaultRoutes, metricsRoutes, exportRoutes, memoryRoutes, canvasRoutes, tenantsRoutes, watcherRoutes, indexerRoutes, ...unifiedPlugins.routes];
   const modules = [...apiModules, createMcpRoutes(unifiedPlugins.mcpTools), createMenuRoutes(menuItemsFromUnifiedPlugins(unifiedPlugins.menu))];
   for (const mod of modules) app.use(mod as any);
@@ -126,7 +128,8 @@ export async function startServer(options: StartServerOptions = {}): Promise<Ret
 export async function createStartedApp(options: StartServerOptions = {}): Promise<ServerSpec> {
   const startupConfig = validateStartupEnv();
   resetIndexerStatus();
-  console.log('[Vector] mode:', VECTOR_URL ? 'proxy → ' + VECTOR_URL : 'local');
+  const vectorPreflight = await preflightVectorRuntime({ warn: (message) => console.warn(message) });
+  console.log('[Vector] mode:', vectorPreflight.vectorUrl ? 'proxy → ' + vectorPreflight.vectorUrl : vectorPreflight.vectorMode);
   void warmEmbeddingProviderDetection().catch((error) => console.warn('[Vector] embedding provider auto-detect failed:', error instanceof Error ? error.message : String(error)));
   logBusyTimeout();
   const ownsPidFile = options.writePidFile !== false;
@@ -141,7 +144,7 @@ export async function createStartedApp(options: StartServerOptions = {}): Promis
   const unifiedServers = await startUnifiedPluginServers(unifiedPlugins.servers);
   registerGracefulShutdown({ close: async () => shutdown(unifiedPlugins, unifiedServers, ownsPidFile) });
 
-  const app = createApp({ unifiedPlugins });
+  const app = createApp({ unifiedPlugins, vectorPreflight });
   await seedMenus(app, unifiedPlugins);
   await announceStartup(app, startupConfig);
   const serverFetch = createRequestTimeoutFetch(createRequestDedupFetch(createApiVersionedFetch(createTenantFetch(createDbContextFetch((request: Request) => app.fetch(request))))));
