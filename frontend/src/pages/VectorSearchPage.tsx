@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { apiClient, type ApiClient, type VectorIndexModelsResponse } from '../api/client';
+import { SearchResultSignals } from '../components/SearchResultSignals';
 import type { VectorSearchResponse } from '../../../src/server/types';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
@@ -69,7 +70,7 @@ function ResultCard({ result }: { result: VectorSearchResult }) {
   const percent = distancePercent(result);
   const concepts = conceptsFor(result);
   return (
-    <article className="rounded-2xl border border-border bg-slate-900/70 p-4 shadow-lg shadow-black/20">
+    <article className="rounded-2xl border border-border bg-surface p-4 shadow-lg shadow-black/10">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-base font-semibold text-text">{titleFor(result)}</h2>
@@ -80,10 +81,11 @@ function ResultCard({ result }: { result: VectorSearchResult }) {
         </span>
       </div>
       <div className="mt-4" aria-label="Vector distance score">
-        <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-          <span className="block h-full rounded-full bg-gradient-to-r from-teal-400 to-cyan-300" style={{ width: `${percent}%` }} />
+        <div className="h-2 overflow-hidden rounded-full border border-border bg-field">
+          <span className="block h-full rounded-full bg-accent-solid" style={{ width: `${percent}%` }} />
         </div>
       </div>
+      <SearchResultSignals result={result} />
       <dl aria-label="Vector result metadata" className="mt-4 grid gap-2 text-xs text-text-muted sm:grid-cols-3">
         <div><dt className="font-semibold text-text-muted">type</dt><dd>{result.type || '—'}</dd></div>
         <div><dt className="font-semibold text-text-muted">source_file</dt><dd className="break-all">{result.source_file || '—'}</dd></div>

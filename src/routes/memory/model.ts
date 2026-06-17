@@ -5,6 +5,9 @@ export const SaveMemoryBody = t.Object({
   title: t.Optional(t.String()),
   tags: t.Optional(t.Array(t.String())),
   source: t.Optional(t.String()),
+  validFrom: t.Optional(t.Union([t.String(), t.Number()])),
+  validTo: t.Optional(t.Union([t.String(), t.Number(), t.Null()])),
+  validUntil: t.Optional(t.Union([t.String(), t.Number()])),
 });
 
 export const MemoryCloseoutBody = t.Object({
@@ -19,11 +22,13 @@ export const MemoryCloseoutBody = t.Object({
 export const RecallMemoryQuery = t.Object({
   q: t.Optional(t.String()),
   limit: t.Optional(t.String()),
+  asOf: t.Optional(t.String()),
 });
 
 export const SemanticMemoryQuery = t.Object({
   q: t.Optional(t.String()),
   limit: t.Optional(t.String()),
+  asOf: t.Optional(t.String()),
 });
 
 export const MorningTapeQuery = t.Object({

@@ -3,6 +3,7 @@ import { currentTenantId } from '../../middleware/tenant.ts';
 import { rerankByEntityLinks } from '../../search/entity-ranking.ts';
 import { rerankCandidates } from '../../server/reranker.ts';
 import type { SearchResult } from '../../server/types.ts';
+import { compactSearchResults, parseSearchRetrievalMode } from '../../search/compact-summary.ts';
 import { isVectorSectionEnabled } from '../../vector/config.ts';
 import type { ToolContext, ToolResponse, OracleSearchInput } from '../types.ts';
 import { searchFts, mapFtsResults, enrichSupersedeFlags } from './fts.ts';
@@ -19,6 +20,8 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
   const startTime = Date.now();
   const { query, type = 'all', limit = 5, offset = 0, mode = 'hybrid', project, cwd, model } = input;
   if (!query || query.trim().length === 0) throw new Error('Query cannot be empty');
+  const retrieval = parseSearchRetrievalMode(input.retrieval);
+  if (!retrieval.ok) throw new Error(retrieval.error);
 
   const safeQuery = sanitizeFtsQuery(query);
   const resolvedProject = (project ?? detectProject(cwd))?.toLowerCase() ?? null;
@@ -70,8 +73,10 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
     ? [...reranked.results, ...entityRankedResults.slice(50)]
     : entityRankedResults;
   const totalMatches = finalResults.length;
-  const results: Array<Record<string, unknown>> = attachSearchEvidence(finalResults.slice(offset, offset + limit));
+  let results: Array<Record<string, unknown>> = attachSearchEvidence(finalResults.slice(offset, offset + limit));
   enrichSupersedeFlags(ctx, results);
+  const compact = retrieval.mode === 'compact-summary' ? compactSearchResults(results, query) : null;
+  if (compact) results = compact.results;
 
   const ftsCount = results.filter((result) => result.source === 'fts').length;
   const vectorCount = results.filter((result) => result.source === 'vector').length;
@@ -89,6 +94,7 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
     ...(requestedMode !== 'fts' ? { vectorAvailable: vectorAvailable === true } : {}),
     reranked: reranked.reranked,
     ...(reranked.fallbackReason ? { rerankFallbackReason: reranked.fallbackReason } : {}),
+    ...(compact ? { retrieval: compact.metadata } : {}),
     ...(warning ? { warning } : {}),
   };
 

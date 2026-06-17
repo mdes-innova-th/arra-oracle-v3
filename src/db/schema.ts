@@ -56,6 +56,9 @@ export const oracleMemories = sqliteTable('oracle_memories', {
   title: text('title'),
   tags: text('tags').default('[]').notNull(),
   source: text('source'),
+  validFrom: integer('valid_from'),
+  validTo: integer('valid_to'),
+  supersededAt: integer('superseded_at'), supersededReason: text('superseded_reason'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 }, (table) => [
@@ -63,6 +66,7 @@ export const oracleMemories = sqliteTable('oracle_memories', {
   index('idx_memory_title').on(table.title),
   index('idx_memory_source').on(table.source),
   index('idx_memory_tenant_created').on(table.tenantId, table.createdAt),
+  index('idx_memory_tenant_valid_time').on(table.tenantId, table.validFrom, table.validTo),
 ]);
 // Indexing status tracking
 export const indexingStatus = sqliteTable('indexing_status', {
@@ -75,7 +79,6 @@ export const indexingStatus = sqliteTable('indexing_status', {
   error: text('error'),
   repoRoot: text('repo_root'),  // Root directory being indexed
 });
-
 export const indexingJobs = sqliteTable('indexing_jobs', {
   id: text('id').primaryKey(),
   docId: text('doc_id').notNull(),
@@ -90,7 +93,6 @@ export const indexingJobs = sqliteTable('indexing_jobs', {
   finishedAt: integer('finished_at'),
   error: text('error'),
 });
-
 // Search query logging
 export const searchLog = sqliteTable('search_log', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -176,7 +178,6 @@ export const forumThreads = sqliteTable('forum_threads', {
   index('idx_thread_created').on(table.createdAt),
   index('idx_thread_tenant_status_updated').on(table.tenantId, table.status, table.updatedAt),
 ]);
-
 export const forumMessages = sqliteTable('forum_messages', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   threadId: integer('thread_id').notNull().references(() => forumThreads.id),
@@ -196,7 +197,6 @@ export const forumMessages = sqliteTable('forum_messages', {
 // Note: FTS5 virtual table (oracle_fts) is managed via raw SQL
 // since Drizzle doesn't natively support FTS5
 // Trace Log Tables (discovery tracing with dig points)
-
 export const traceLog = sqliteTable('trace_log', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   traceId: text('trace_id').unique().notNull(),
@@ -245,6 +245,5 @@ export const traceLog = sqliteTable('trace_log', {
   index('idx_trace_next').on(table.nextTraceId),
   index('idx_trace_created').on(table.createdAt),
 ]);
-
 export { exportJobs } from './export-schema.ts';
 export { activityLog, menuItems, schedule, settings, supersedeLog } from './logistics-schema.ts';
