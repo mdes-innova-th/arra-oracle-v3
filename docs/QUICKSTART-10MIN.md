@@ -11,7 +11,7 @@ From a clean checkout:
 ```bash
 export ORACLE_DATA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/arra-quickstart-XXXXXX")"
 export ORACLE_DB_PATH="$ORACLE_DATA_DIR/oracle.db"
-export ORACLE_PORT=48939
+export ORACLE_PORT=48940
 export PORT="$ORACLE_PORT"
 export ORACLE_FILE_WATCHER=0
 
@@ -32,13 +32,13 @@ Verified on 2026-06-17 from branch `origin/alpha` using `rtk`:
 
 | Elapsed | Step | Evidence |
 | ---: | --- | --- |
-| 0.03s | Created isolated data dir | `ORACLE_DATA_DIR=/var/.../arra-quickstart-default-pZqsnH` |
-| 0.05s | Started local server | `bun src/server.ts`, PID `52974`, port `48939` |
-| 0.62s | Health check passed | `GET /api/health` returned OK |
-| 0.64s | Mined sample folder | `Mined 2 documents from 2 files (0 skipped)` |
-| 0.73s | Searched indexed notes | `GET /api/v1/search?q=memory%20onboarding&mode=fts&limit=5` |
-| 0.78s | Verified result | response included `mine/sample-notes/projects/oracle-memory.md` |
-| 0.80s | Complete | end-to-end under one second on this machine |
+| 0.02s | Created isolated data dir | `ORACLE_DATA_DIR=/var/.../arra-quickstart-default-MLCu6T` |
+| 0.04s | Started local server | `bun src/server.ts`, PID `72005`, port `48940` |
+| 0.60s | Health check passed | `GET /api/health` returned OK |
+| 0.62s | Mined sample folder | `Mined 2 documents from 2 files (0 skipped)` |
+| 0.71s | Searched indexed notes | `GET /api/v1/search?q=memory%20onboarding&mode=fts&limit=5` |
+| 0.75s | Verified result | response included `mine/sample-notes/projects/oracle-memory.md` |
+| 0.77s | Complete | end-to-end under one second on this machine |
 
 Search response summary:
 
