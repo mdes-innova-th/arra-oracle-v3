@@ -73,6 +73,7 @@ test('oracle_recap emits identity and top memories grouped by project', async ()
   expect(text).toContain('## beta');
   expect(text.indexOf('alpha-hot')).toBeLessThan(text.indexOf('alpha-cold'));
   expect(text).toContain('heat');
+  expect(text).toContain('http://localhost:47778/simple');
   expect(tokens(text)).toBeLessThanOrEqual(300);
 });
 
@@ -82,5 +83,6 @@ test('oracle_recap handles an empty knowledge base cheaply', async () => {
 
   expect(text).toContain('No memories indexed yet');
   expect(text).toContain('oracle_learn');
+  expect(text).toContain('/simple');
   expect(tokens(text)).toBeLessThanOrEqual(220);
 });

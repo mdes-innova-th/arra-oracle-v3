@@ -19,6 +19,7 @@ is linked here; keep new docs in the right section when adding files.
 | [CLI-GUIDE.md](./CLI-GUIDE.md) | Full CLI, MCP, HTTP, scripts, deploy, and env usage guide | `arra`, `arra-oracle-v3`, Claude MCP |
 | [QUICKSTART-10MIN.md](./QUICKSTART-10MIN.md) | Docker-first non-dev path: mine notes, then ask | Docker, `arra mine`, `/api/v1/ask` |
 | [QUICKSTART.md](./QUICKSTART.md) | Complete a five-minute first run | `arra-oracle-v3 serve`, `arra health`, MCP config |
+| [SIMPLE-MODE-SPEC.md](./SIMPLE-MODE-SPEC.md) | Explain the non-dev `/simple` screen and never-silent health states | Simple Mode, health hero, recovery copy |
 | [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | Diagnose install, MCP, HTTP, vector, plugin, and Docker issues | health checks, auth, tenants, logs |
 | [FAQ.md](./FAQ.md) | Answer common operator and contributor questions | install path, binaries, data, vectors, tenants |
 | [architecture.md](./architecture.md) | Understand the installable runtime architecture | HTTP, MCP, CLI, plugins, storage |
