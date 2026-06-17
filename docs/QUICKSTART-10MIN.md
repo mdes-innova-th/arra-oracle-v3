@@ -11,18 +11,19 @@ From a clean checkout:
 ```bash
 export ORACLE_DATA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/arra-quickstart-XXXXXX")"
 export ORACLE_DB_PATH="$ORACLE_DATA_DIR/oracle.db"
-export ORACLE_PORT=48940
+export ORACLE_PORT=48942
 export PORT="$ORACLE_PORT"
 export ORACLE_FILE_WATCHER=0
 
-bun src/server.ts
+bun bin/arra.ts serve --port "$ORACLE_PORT"
 ```
 
-In another shell, use the CLI. In an installed build this is `arra`; in this
-source checkout the same entrypoint is `bun cli/src/cli.ts`:
+In another shell, mine with the same package bin. In an installed build this is
+`arra-oracle mine`; in this source checkout the same entrypoint is
+`bun bin/arra.ts mine`:
 
 ```bash
-bun cli/src/cli.ts mine docs/sample-notes --db-path "$ORACLE_DB_PATH"
+bun bin/arra.ts mine docs/sample-notes --db-path "$ORACLE_DB_PATH"
 curl -s "http://127.0.0.1:$ORACLE_PORT/api/v1/search?q=memory%20onboarding&mode=fts&limit=5"
 ```
 
@@ -32,13 +33,13 @@ Verified on 2026-06-17 from branch `origin/alpha` using `rtk`:
 
 | Elapsed | Step | Evidence |
 | ---: | --- | --- |
-| 0.02s | Created isolated data dir | `ORACLE_DATA_DIR=/var/.../arra-quickstart-default-MLCu6T` |
-| 0.04s | Started local server | `bun src/server.ts`, PID `72005`, port `48940` |
-| 0.60s | Health check passed | `GET /api/health` returned OK |
-| 0.62s | Mined sample folder | `Mined 2 documents from 2 files (0 skipped)` |
+| 0.02s | Created isolated data dir | `ORACLE_DATA_DIR=/var/.../arra-quickstart-bin-aIVoDF` |
+| 0.04s | Started local server | `bun bin/arra.ts serve --port 48942`, PID `16156`, port `48942` |
+| 0.61s | Health check passed | `GET /api/health` returned OK |
+| 0.63s | Mined sample folder | `Mined 2 documents from 2 files (0 skipped)` |
 | 0.71s | Searched indexed notes | `GET /api/v1/search?q=memory%20onboarding&mode=fts&limit=5` |
-| 0.75s | Verified result | response included `mine/sample-notes/projects/oracle-memory.md` |
-| 0.77s | Complete | end-to-end under one second on this machine |
+| 0.76s | Verified result | response included `mine/sample-notes/projects/oracle-memory.md` |
+| 0.78s | Complete | end-to-end under one second on this machine |
 
 Search response summary:
 
