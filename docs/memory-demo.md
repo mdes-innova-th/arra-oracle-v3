@@ -66,12 +66,14 @@ Recall computes confidence at read time; there is no stored confidence column.
 curl_json "$BASE/memory/recall?q=Stormforge%20demo%20policy&limit=5" | json
 ```
 
-Look at `items[0].confidence`:
+Look at `items[0].confidence` and `items[0].ranking`:
 
-- `score` and `label` summarize trust for this query.
-- `components.match` is the keyword/semantic match signal.
-- `components.freshness` decays with age.
-- `components.provenance` rises when source, tags, and title are present.
+- `confidence.score` and `confidence.label` summarize trust for this query.
+- `confidence.components.match` is the keyword/semantic match signal.
+- `confidence.components.freshness` decays with age.
+- `confidence.components.provenance` rises when source, tags, and title are present.
+- `ranking.strategy` is `valid_time_confidence_heat_match`.
+- `ranking.components.heat` and `ranking.components.validTime` show the extra rank signals.
 - `warnings` shows missing source/tags or stale unvalidated memories.
 
 For vector-backed stores, use semantic confidence:
