@@ -1,4 +1,5 @@
 import { Elysia } from 'elysia';
+import { allowedCorsOrigin, parseCorsOrigins } from './cors.ts';
 
 export const API_VERSION = 'v1';
 export const API_VERSION_HEADER = 'X-API-Version';
@@ -64,13 +65,20 @@ function withVersionHeader(response: Response): Response {
   });
 }
 
-function redirectResponse(location: string): Response {
+function redirectResponse(location: string, request: Request): Response {
+  const origin = allowedCorsOrigin(request.headers.get('origin'), parseCorsOrigins());
+  const headers: Record<string, string> = {
+    Location: location,
+    [API_VERSION_HEADER]: API_VERSION,
+  };
+  if (origin) {
+    headers['Access-Control-Allow-Origin'] = origin;
+    headers['Access-Control-Allow-Credentials'] = 'true';
+    headers.Vary = 'Origin';
+  }
   return new Response(null, {
     status: 308,
-    headers: {
-      Location: location,
-      [API_VERSION_HEADER]: API_VERSION,
-    },
+    headers,
   });
 }
 
@@ -89,7 +97,7 @@ export async function handleApiVersionedRequest(
   next: FetchHandler,
 ): Promise<Response> {
   const location = versionedLocation(request);
-  if (location) return redirectResponse(location);
+  if (location) return redirectResponse(location, request);
   return withVersionHeader(await next(rewriteVersionedRequest(request)));
 }
 

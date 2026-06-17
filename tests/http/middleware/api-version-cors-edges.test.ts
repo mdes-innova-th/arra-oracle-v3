@@ -21,11 +21,14 @@ describe('api version middleware redirects and rewrites edge paths', () => {
       return new Response('unexpected');
     });
 
-    const res = await fetcher(new Request('http://local/api/search?q=oracle&next=%2Fapi%2Fdocs'));
+    const res = await fetcher(new Request('http://local/api/search?q=oracle&next=%2Fapi%2Fdocs', {
+      headers: { origin: 'http://localhost:3000' },
+    }));
 
     expect(res.status).toBe(308);
     expect(res.headers.get('location')).toBe('http://local/api/v1/search?q=oracle&next=%2Fapi%2Fdocs');
     expect(res.headers.get(API_VERSION_HEADER)).toBe('v1');
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:3000');
     expect(calls).toBe(0);
   });
 

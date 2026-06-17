@@ -9,7 +9,8 @@ declare global {
   }
 }
 
-type PrivateNetworkRequestInit = RequestInit & { targetAddressSpace?: 'local' };
+type LocalTargetAddressSpace = 'loopback' | 'local';
+type PrivateNetworkRequestInit = RequestInit & { targetAddressSpace?: LocalTargetAddressSpace };
 
 function browserWindow(): Window | undefined {
   return typeof window === 'undefined' ? undefined : window;
@@ -56,9 +57,10 @@ function resolveBrowserApiHost(): string {
   return host;
 }
 
-function isLocalAddress(hostname: string): boolean {
+function localTargetAddressSpace(hostname: string): LocalTargetAddressSpace | null {
   const host = hostname.toLowerCase();
-  return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host.endsWith('.localhost');
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host.endsWith('.localhost')) return 'loopback';
+  return null;
 }
 
 export function isTauri(): boolean {
@@ -69,9 +71,16 @@ export const API_HOST = isTauri() ? 'localhost:47778' : resolveBrowserApiHost();
 export const API_BASE = isTauri() ? TAURI_API_BASE : `http://${API_HOST}`;
 export const USE_LOCAL_PNA = (() => {
   try {
-    return !isTauri() && isLocalAddress(new URL(API_BASE).hostname);
+    return !isTauri() && Boolean(localTargetAddressSpace(new URL(API_BASE).hostname));
   } catch {
     return false;
+  }
+})();
+const LOCAL_PNA_TARGET = (() => {
+  try {
+    return isTauri() ? null : localTargetAddressSpace(new URL(API_BASE).hostname);
+  } catch {
+    return null;
   }
 })();
 
@@ -140,8 +149,8 @@ export function apiUrl(path: string): string {
 }
 
 export function withLocalPna(init: RequestInit = {}): RequestInit {
-  if (!USE_LOCAL_PNA) return init;
-  return { ...init, targetAddressSpace: 'local' } as PrivateNetworkRequestInit;
+  if (!USE_LOCAL_PNA || !LOCAL_PNA_TARGET) return init;
+  return { ...init, targetAddressSpace: LOCAL_PNA_TARGET } as PrivateNetworkRequestInit;
 }
 
 export function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
