@@ -50,7 +50,9 @@ beforeAll(() => {
       origin TEXT,
       project TEXT,
       tenant_id TEXT NOT NULL DEFAULT 'default',
-      created_by TEXT
+      created_by TEXT,
+      usage_count INTEGER NOT NULL DEFAULT 0,
+      last_accessed_at INTEGER
     );
 
     CREATE INDEX idx_type ON oracle_documents(type);
