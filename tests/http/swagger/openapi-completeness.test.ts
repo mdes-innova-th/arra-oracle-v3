@@ -51,6 +51,23 @@ describe('/api/docs/json OpenAPI completeness', () => {
     expect(spec.paths['/api/auth/login'].post.requestBody.content['application/json'].example)
       .toMatchObject({ password: expect.any(String) });
     expect(spec.paths['/api/gateway/status'].get.summary).toBe('GET gateway status');
+    expect(spec.paths['/api/memory/save'].post.requestBody.content['application/json'])
+      .toMatchObject({
+        schema: { $ref: '#/components/schemas/MemorySaveRequest' },
+        example: { validFrom: expect.any(String), validTo: null },
+      });
+    expect(spec.paths['/api/memory/search'].get.responses['200'].content['application/json'].schema)
+      .toEqual({ $ref: '#/components/schemas/MemorySearchResponse' });
+    expect(spec.paths['/api/memory/recall'].get.parameters)
+      .toContainEqual(expect.objectContaining({ name: 'asOf', description: expect.stringContaining('valid_from/valid_to') }));
+    expect(spec.components.schemas.MemoryRecord.properties.validFrom['x-storage-field']).toBe('valid_from');
+    expect(spec.components.schemas.MemoryRecord.properties.validTo['x-storage-field']).toBe('valid_to');
+    expect(spec.components.schemas.MemoryRecord.properties.usageCount['x-storage-field']).toBe('usage_count');
+    expect(spec.components.schemas.MemoryRecord.properties.lastAccessedAt['x-storage-field']).toBe('last_accessed_at');
+    expect(spec.components.schemas.MemoryConfidence.properties.components.properties.usage.description)
+      .toContain('heat score');
+    expect(spec.components.schemas.MemoryFanoutResponse.properties.results.items)
+      .toEqual({ $ref: '#/components/schemas/MemoryFanoutResult' });
   });
 });
 
