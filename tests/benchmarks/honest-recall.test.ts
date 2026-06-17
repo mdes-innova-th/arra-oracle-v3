@@ -69,6 +69,21 @@ describe('honest recall benchmark harness', () => {
     expect(JSON.parse(readFileSync(outFile, 'utf8')).provenance.corpus).toEqual({ label: 'oracle-test', size: 10 });
   });
 
+
+
+  test('shipped public recall dataset is parseable and does not leak private paths', () => {
+    const text = readFileSync('benchmarks/fixtures/recall-dataset.jsonl', 'utf8');
+    const lines = text.trim().split('\n');
+    const cases = parseDatasetText(text);
+
+    expect(lines.length).toBeGreaterThanOrEqual(30);
+    expect(lines.length).toBeLessThanOrEqual(50);
+    expect(cases).toHaveLength(lines.length);
+    expect(cases.every((item) => item.id && item.query && item.expectedIds.length > 0)).toBe(true);
+    expect(text).not.toContain('\u03c8/');
+    expect(text).not.toContain('/Users/');
+  });
+
   test('rejects invalid mode before search or provenance output', async () => {
     const outFile = tempFile('bad-mode.json');
     const searcher: Searcher = async () => { throw new Error('searcher should not run'); };
