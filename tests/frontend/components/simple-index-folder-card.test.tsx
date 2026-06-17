@@ -39,6 +39,21 @@ describe('IndexFolderCard', () => {
     expect(html).not.toContain('CLI fallback');
   });
 
+  test('allows a wired local runner without pretending remote browsers can read folders', () => {
+    const html = htmlFor(
+      <IndexFolderCard
+        defaultExpanded
+        initialPath="/vault/notes"
+        onIndexFolder={() => 'started'}
+        runtime={{ tauri: false, localApi: true }}
+      />,
+    );
+
+    expect(html).toContain('Index folder');
+    expect(html).not.toContain('disabled=""');
+    expect(html).not.toContain('CLI fallback');
+  });
+
   test('quotes CLI paths safely and detects local Oracle hosts', () => {
     expect(mineCommandForPath('/tmp/notes')).toBe('arra mine /tmp/notes');
     expect(mineCommandForPath('/tmp/My Notes')).toBe("arra mine '/tmp/My Notes'");
