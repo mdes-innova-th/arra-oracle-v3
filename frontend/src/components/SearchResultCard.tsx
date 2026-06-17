@@ -1,19 +1,21 @@
-import type { SearchResult } from '../types';
+import { Badge } from './Badge';
 import { MemorySignalBadges } from './MemoryHealthPanel';
-import { previewFor, scoreLabel, titleFor } from './searchResultView';
+import { SearchResultSignals } from './SearchResultSignals';
+import { previewFor, scoreLabel, titleFor, type ProvenanceSearchResult } from './searchResultView';
 
-export function SearchResultCard({ result }: { result: SearchResult }) {
+export function SearchResultCard({ result }: { result: ProvenanceSearchResult }) {
   const score = scoreLabel(result.score);
   return (
-    <article className="rounded-2xl border border-border bg-surface p-4 transition hover:border-teal-300/30">
+    <article className="rounded-2xl border border-border bg-surface p-4 transition hover:border-accent-border">
       <div className="flex items-start justify-between gap-3">
         <h3 className="break-all font-mono text-sm text-accent">{titleFor(result)}</h3>
         <div className="flex flex-wrap justify-end gap-2">
-          {score ? <span className="rounded-full border border-accent-border px-2 py-1 text-xs font-semibold text-accent">{score}</span> : null}
+          {score ? <Badge tone="accent" ariaLabel={`Result score ${score}`}>{score}</Badge> : null}
           <MemorySignalBadges result={result} />
         </div>
       </div>
       <p className="mt-3 text-sm leading-6 text-text-muted">{previewFor(result)}</p>
+      <SearchResultSignals result={result} />
       <div className="mt-3 flex flex-wrap gap-2 text-xs text-text-muted">
         {result.type ? <span>type: {result.type}</span> : null}
         {result.source ? <span>source: {result.source}</span> : null}

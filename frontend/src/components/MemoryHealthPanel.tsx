@@ -8,6 +8,8 @@ type MemorySignal = {
 const heatKeys = ['heat_score', 'heatScore', 'heat-score', 'memory_heat_score', 'memoryHeatScore'];
 const recalledKeys = ['last_recalled', 'lastRecalled', 'last_recalled_at', 'lastRecalledAt', 'last_accessed_at', 'lastAccessedAt'];
 const usageKeys = ['usage_count', 'usageCount', 'recall_count', 'recallCount', 'visit_count', 'visitCount'];
+const heatPaths = [['ranking', 'components', 'heat'], ['confidence', 'components', 'usage']];
+const usagePaths = [['confidence', 'usageCount']];
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -18,6 +20,15 @@ function firstValue(source: Record<string, unknown>, keys: string[]): unknown {
   for (const key of keys) {
     if (source[key] !== undefined) return source[key];
     if (metadata[key] !== undefined) return metadata[key];
+  }
+  return undefined;
+}
+
+function firstPath(source: Record<string, unknown>, paths: string[][]): unknown {
+  for (const path of paths) {
+    let value: unknown = source;
+    for (const part of path) value = record(value)[part];
+    if (value !== undefined) return value;
   }
   return undefined;
 }
@@ -42,9 +53,9 @@ function dateValue(value: unknown): string | undefined {
 
 export function memorySignalFor(result: unknown): MemorySignal {
   const source = record(result);
-  const heatScore = normalizeHeat(firstValue(source, heatKeys));
+  const heatScore = normalizeHeat(firstValue(source, heatKeys) ?? firstPath(source, heatPaths));
   const lastRecalled = dateValue(firstValue(source, recalledKeys));
-  const usageCount = numberValue(firstValue(source, usageKeys));
+  const usageCount = numberValue(firstValue(source, usageKeys) ?? firstPath(source, usagePaths));
   return { heatScore, lastRecalled, usageCount, heatPending: heatScore === undefined };
 }
 

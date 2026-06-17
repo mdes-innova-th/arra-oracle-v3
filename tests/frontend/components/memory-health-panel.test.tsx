@@ -15,6 +15,7 @@ describe('MemoryHealthPanel heat and recency signals', () => {
       heatPending: false,
     });
     expect(memorySignalFor({ metadata: { heatScore: 72, lastAccessedAt: 1781659001234 } }).heatScore).toBe(0.72);
+    expect(memorySignalFor({ ranking: { components: { heat: 0.64 } }, confidence: { usageCount: 5 } }).heatScore).toBe(0.64);
   });
 
   test('renders memory health summary and pending backend stub', () => {
