@@ -232,6 +232,13 @@
       "when": 1781669499599,
       "tag": "0032_schema_integrity_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1781669700000,
+      "tag": "0033_entity_links_ranking_sidecar",
+      "breakpoints": true
     }
   ]
 }
