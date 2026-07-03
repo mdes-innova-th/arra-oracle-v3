@@ -14,6 +14,7 @@ import { oceanDepth } from './ocean-depth';
 import { sandDune } from './sand-dune';
 import { auroraBorealis } from './aurora-borealis';
 import { tropical } from './tropical';
+import { ivoryGold } from './ivory-gold';
 
 registerTheme(oracleDefault);
 registerTheme(midnightTeal);
@@ -30,6 +31,7 @@ registerTheme(oceanDepth);
 registerTheme(sandDune);
 registerTheme(auroraBorealis);
 registerTheme(tropical);
+registerTheme(ivoryGold);
 
 export { getThemes, getTheme, DEFAULT_THEME_ID } from './registry';
 export type { ThemeDefinition, ThemeTokens } from './types';
