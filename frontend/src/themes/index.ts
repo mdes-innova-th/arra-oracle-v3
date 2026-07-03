@@ -19,6 +19,7 @@ import { monochrome } from './monochrome';
 import { sunsetGradient } from './sunset-gradient';
 import { nordicFrost } from './nordic-frost';
 import { deepSpace } from './deep-space';
+import { cyberpunk } from './cyberpunk';
 
 registerTheme(oracleDefault);
 registerTheme(midnightTeal);
@@ -40,6 +41,7 @@ registerTheme(monochrome);
 registerTheme(sunsetGradient);
 registerTheme(nordicFrost);
 registerTheme(deepSpace);
+registerTheme(cyberpunk);
 
 export { getThemes, getTheme, DEFAULT_THEME_ID } from './registry';
 export type { ThemeDefinition, ThemeTokens } from './types';
