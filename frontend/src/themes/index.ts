@@ -15,6 +15,7 @@ import { sandDune } from './sand-dune';
 import { auroraBorealis } from './aurora-borealis';
 import { tropical } from './tropical';
 import { ivoryGold } from './ivory-gold';
+import { sunsetGradient } from './sunset-gradient';
 
 registerTheme(oracleDefault);
 registerTheme(midnightTeal);
@@ -32,6 +33,7 @@ registerTheme(sandDune);
 registerTheme(auroraBorealis);
 registerTheme(tropical);
 registerTheme(ivoryGold);
+registerTheme(sunsetGradient);
 
 export { getThemes, getTheme, DEFAULT_THEME_ID } from './registry';
 export type { ThemeDefinition, ThemeTokens } from './types';
