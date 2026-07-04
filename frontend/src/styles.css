@@ -117,6 +117,38 @@ body {
 .hide-scrollbar { scrollbar-width: none; }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 
+.connect-shell {
+  background:
+    radial-gradient(ellipse at 30% 20%, oklch(0.55 0.14 178 / 0.25), transparent 50%),
+    radial-gradient(ellipse at 70% 80%, oklch(0.50 0.12 260 / 0.20), transparent 50%),
+    radial-gradient(ellipse at 50% 50%, oklch(0.40 0.06 220 / 0.15), transparent 60%),
+    oklch(0.14 0.02 250);
+}
+
+.connect-glass {
+  background: oklch(0.92 0.01 220 / 0.12);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid oklch(1 0 0 / 0.18);
+  box-shadow:
+    0 0 0 1px oklch(1 0 0 / 0.06),
+    0 12px 48px oklch(0.50 0.10 178 / 0.10),
+    inset 0 1px 0 oklch(1 0 0 / 0.12);
+}
+
+@keyframes dash {
+  to { stroke-dashoffset: -20; }
+}
+
+.pna-beacon {
+  animation: fadeSlideIn 0.6s ease-out both;
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 
 .status-success,
 .status-ok {

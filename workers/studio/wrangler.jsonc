@@ -4,6 +4,9 @@
   "main": "worker.ts",
   "compatibility_date": "2026-06-16",
   "workers_dev": true,
+  "routes": [
+    { "pattern": "v4.buildwithoracle.com", "custom_domain": true }
+  ],
   "observability": { "enabled": true },
   "assets": {
     "directory": "../../frontend/dist",
