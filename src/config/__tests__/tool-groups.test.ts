@@ -14,7 +14,7 @@ import {
 describe('tool-groups', () => {
   it('defines groups with correct tool counts', () => {
     expect(Object.keys(TOOL_GROUPS)).toHaveLength(7);
-    expect(TOOL_GROUPS.search).toHaveLength(4);
+    expect(TOOL_GROUPS.search).toHaveLength(5);
     expect(TOOL_GROUPS.knowledge).toHaveLength(4);
     expect(TOOL_GROUPS.oracle).toEqual(['oracle_profile']);
     expect(TOOL_GROUPS.trace).toHaveLength(7);
@@ -46,6 +46,7 @@ describe('tool-groups', () => {
     expect(disabled.has('oracle_trace_list')).toBe(true);
     expect(disabled.has('oracle_trace_distill')).toBe(true);
     expect(disabled.has('oracle_search')).toBe(false);
+    expect(disabled.has('oracle_search_chain')).toBe(false);
     expect(disabled.has('oracle_learn')).toBe(false);
     expect(disabled.has('oracle_profile')).toBe(false);
     const oracleDisabled = getDisabledTools({ ...config, oracle: false, trace: true });
@@ -98,6 +99,7 @@ describe('tool-groups', () => {
     };
     const disabled = getDisabledTools(config);
     expect(disabled.has('oracle_search')).toBe(true);
+    expect(disabled.has('oracle_search_chain')).toBe(false);
     expect(disabled.has('typo_search')).toBe(false);
     expect(disabled.has('also_typo')).toBe(false);
   });

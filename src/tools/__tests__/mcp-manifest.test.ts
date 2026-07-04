@@ -7,6 +7,7 @@ describe('runtime MCP manifest', () => {
     expect(new Set(names).size).toBe(names.length);
     expect(names).toContain('oracle_recap');
     expect(names).toContain('oracle_search');
+    expect(names).toContain('oracle_search_chain');
     expect(names).toContain('oracle_mcp_call');
   });
 
@@ -24,6 +25,7 @@ describe('runtime MCP manifest', () => {
   it('models read-only behavior from manifest metadata', () => {
     expect(mcpToolByName.get('oracle_recap')?.readOnly).toBe(true);
     expect(mcpToolByName.get('oracle_search')?.readOnly).toBe(true);
+    expect(mcpToolByName.get('oracle_search_chain')?.readOnly).toBe(false);
     expect(mcpToolByName.get('oracle_learn')?.readOnly).toBe(false);
     expect(mcpToolByName.get('oracle_mcp_call')?.readOnly).toBe(false);
   });
