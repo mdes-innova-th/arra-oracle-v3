@@ -62,7 +62,7 @@ async function tauriHealthCheck(): Promise<void> {
     throw new Error(`health_check returned ${String(status)}`);
 }
 
-function PnaGuide({ retryCount }: { retryCount: number }) {
+function PnaGuide({ retryCount, onRetry }: { retryCount: number; onRetry: () => void }) {
   if (retryCount >= 3) {
     return (
       <div className="pna-beacon pointer-events-none fixed left-[165px] top-[52px] z-50 grid -translate-x-1/2 justify-items-center gap-2" aria-hidden="true">
@@ -76,8 +76,8 @@ function PnaGuide({ retryCount }: { retryCount: number }) {
     );
   }
   return (
-    <div className="pna-beacon pointer-events-none fixed left-[90px] top-[10px] z-50 w-[330px] max-w-[calc(100vw-2rem)]" aria-hidden="true">
-      <div className="rounded-2xl border-2 border-dashed border-accent-solid/50 bg-[oklch(0.24_0.01_260/0.9)] p-4 shadow-2xl backdrop-blur-sm">
+    <div className="pna-beacon fixed left-[147px] top-[10px] z-50 w-[330px] max-w-[calc(100vw-2rem)]">
+      <div className="pointer-events-none rounded-2xl border-2 border-dashed border-accent-solid/50 bg-[oklch(0.24_0.01_260/0.9)] p-4 shadow-2xl backdrop-blur-sm" aria-hidden="true">
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm font-semibold text-white">v4.buildwithoracle.com wants to</p>
           <span className="text-sm text-white/50">✕</span>
@@ -94,7 +94,14 @@ function PnaGuide({ retryCount }: { retryCount: number }) {
       <div className="mt-2 flex w-full items-center justify-between gap-3 rounded-xl bg-accent-solid/90 px-4 py-2.5 shadow-lg">
         <p className="text-left text-xs font-semibold leading-snug text-on-accent">
           The real Chrome prompt appears here.
-          <br />No prompt? Press <strong>Retry</strong> below.
+          <br />No prompt?
+          <button
+            className="focus-ring ml-2 inline-block rounded-full bg-[oklch(0.20_0.02_260)] px-4 py-1.5 text-xs font-bold text-white transition hover:bg-[oklch(0.28_0.02_260)]"
+            type="button"
+            onClick={onRetry}
+          >
+            Retry
+          </button>
         </p>
         <svg className="mr-2 shrink-0 text-on-accent" width="22" height="30" viewBox="0 0 22 30" aria-hidden="true">
           <path d="M11 28 L11 6 M3 13 L11 5 L19 13" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
@@ -133,7 +140,7 @@ export function ConnectOracleSetup({
 
   return (
     <main className="connect-shell flex min-h-screen items-center justify-center p-6 text-text">
-      {showGuide ? <PnaGuide retryCount={retryCount} /> : null}
+      {showGuide ? <PnaGuide retryCount={retryCount} onRetry={onRetry} /> : null}
       <section className="connect-glass w-full max-w-xl rounded-3xl p-8">
         <div className="mb-6 flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
           <div className="flex h-20 w-20 items-center justify-center rounded-[1.35rem] bg-[oklch(0.12_0.02_265)] text-5xl drop-shadow-[0_0_20px_oklch(0.60_0.15_300/0.5)]" aria-hidden="true">
