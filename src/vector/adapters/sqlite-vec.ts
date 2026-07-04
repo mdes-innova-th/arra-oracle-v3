@@ -1,30 +1,34 @@
-/**
- * sqlite-vec Adapter
- *
- * Uses bun:sqlite + sqlite-vec extension for vector search.
- * Requires an EmbeddingProvider since sqlite-vec doesn't generate embeddings.
- *
- * "Small Enough to Understand" — same runtime, no external process, zero network.
- */
-
 import { Database } from 'bun:sqlite';
 import type { VectorStoreAdapter, VectorDocument, VectorQueryResult, EmbeddingProvider } from '../types.ts';
 
-/** Convert number[] to Float32Array binary blob for sqlite-vec */
+type SqliteVecRow = {
+  id: string;
+  distance: number;
+  document: string;
+  metadata: string;
+};
+
 function toBlob(vec: number[]): Buffer {
   return Buffer.from(new Float32Array(vec).buffer);
 }
 
-/** Convert sqlite-vec binary blob back to number[] */
 function fromBlob(blob: any): number[] {
   if (blob instanceof Buffer || blob instanceof Uint8Array) {
     return Array.from(new Float32Array(blob.buffer, blob.byteOffset, blob.byteLength / 4));
   }
-  // Fallback: try JSON parse if stored as string
   if (typeof blob === 'string') {
     try { return JSON.parse(blob); } catch { return []; }
   }
   return [];
+}
+
+function rowsToResult(rows: SqliteVecRow[]): VectorQueryResult {
+  return {
+    ids: rows.map(r => r.id),
+    documents: rows.map(r => r.document),
+    distances: rows.map(r => r.distance),
+    metadatas: rows.map(r => JSON.parse(r.metadata)),
+  };
 }
 
 export class SqliteVecAdapter implements VectorStoreAdapter {
@@ -44,19 +48,15 @@ export class SqliteVecAdapter implements VectorStoreAdapter {
     if (this.db) return;
 
     this.db = new Database(this.dbPath);
-
-    // Load sqlite-vec extension — try npm package first, then system paths
     let loaded = false;
     const tryPaths = ['vec0', '/usr/local/lib/sqlite-vec'];
 
-    // Try npm package path (sqlite-vec npm)
     try {
       const sqliteVec = require('sqlite-vec');
       const extPath = sqliteVec.getLoadablePath();
       this.db.loadExtension(extPath);
       loaded = true;
     } catch {
-      // npm package not available, try system paths
       for (const p of tryPaths) {
         try {
           this.db.loadExtension(p);
@@ -86,7 +86,6 @@ export class SqliteVecAdapter implements VectorStoreAdapter {
 
     const dims = this.embedder.dimensions;
 
-    // Metadata table (id, document text, metadata JSON)
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS ${this.collectionName}_meta (
         id TEXT PRIMARY KEY,
@@ -95,7 +94,6 @@ export class SqliteVecAdapter implements VectorStoreAdapter {
       )
     `);
 
-    // Virtual table for vector search
     this.db.exec(`
       CREATE VIRTUAL TABLE IF NOT EXISTS ${this.collectionName}_vec USING vec0(
         id TEXT PRIMARY KEY,
@@ -124,7 +122,6 @@ export class SqliteVecAdapter implements VectorStoreAdapter {
 
     await this.ensureCollection();
 
-    // Generate embeddings for all documents
     const texts = docs.map(d => d.document);
     const embeddings = await this.embedder.embed(texts, 'passage');
 
@@ -142,7 +139,6 @@ export class SqliteVecAdapter implements VectorStoreAdapter {
     try {
       for (let i = 0; i < docs.length; i++) {
         insertMeta.run(docs[i].id, docs[i].document, JSON.stringify(docs[i].metadata));
-        // sqlite-vec expects embedding as Float32Array binary blob
         insertVec.run(docs[i].id, toBlob(embeddings[i]));
       }
       this.db.exec('COMMIT');
@@ -157,27 +153,17 @@ export class SqliteVecAdapter implements VectorStoreAdapter {
   async query(text: string, limit: number = 10, where?: Record<string, any>): Promise<VectorQueryResult> {
     if (!this.db) throw new Error('sqlite-vec not connected');
 
-    // Generate query embedding
     const [queryEmbedding] = await this.embedder.embed([text], 'query');
-
-    // When filtering, fetch more results since we filter in JS
     const fetchLimit = where ? limit * 3 : limit;
 
-    // KNN search via sqlite-vec — uses `k = ?` constraint, not LIMIT
     const rows = this.db.prepare(`
       SELECT v.id, v.distance, m.document, m.metadata
       FROM ${this.collectionName}_vec v
       JOIN ${this.collectionName}_meta m ON v.id = m.id
       WHERE v.embedding MATCH ? AND k = ?
       ORDER BY v.distance
-    `).all(toBlob(queryEmbedding), fetchLimit) as Array<{
-      id: string;
-      distance: number;
-      document: string;
-      metadata: string;
-    }>;
+    `).all(toBlob(queryEmbedding), fetchLimit) as SqliteVecRow[];
 
-    // Apply where filter in JS (sqlite-vec doesn't support metadata filtering)
     let filtered = rows;
     if (where) {
       filtered = rows.filter(row => {
@@ -186,18 +172,12 @@ export class SqliteVecAdapter implements VectorStoreAdapter {
       }).slice(0, limit);
     }
 
-    return {
-      ids: filtered.map(r => r.id),
-      documents: filtered.map(r => r.document),
-      distances: filtered.map(r => r.distance),
-      metadatas: filtered.map(r => JSON.parse(r.metadata)),
-    };
+    return rowsToResult(filtered);
   }
 
   async queryById(id: string, nResults: number = 5): Promise<VectorQueryResult> {
     if (!this.db) throw new Error('sqlite-vec not connected');
 
-    // Get the document's embedding from vec table (returns binary blob)
     const doc = this.db.prepare(`
       SELECT embedding FROM ${this.collectionName}_vec WHERE id = ?
     `).get(id) as { embedding: any } | null;
@@ -206,29 +186,30 @@ export class SqliteVecAdapter implements VectorStoreAdapter {
       throw new Error(`No embedding found for document: ${id}`);
     }
 
-    // KNN search using the existing embedding blob
     const rows = this.db.prepare(`
       SELECT v.id, v.distance, m.document, m.metadata
       FROM ${this.collectionName}_vec v
       JOIN ${this.collectionName}_meta m ON v.id = m.id
       WHERE v.embedding MATCH ? AND k = ?
       ORDER BY v.distance
-    `).all(doc.embedding, nResults + 1) as Array<{
-      id: string;
-      distance: number;
-      document: string;
-      metadata: string;
-    }>;
+    `).all(doc.embedding, nResults + 1) as SqliteVecRow[];
 
-    // Filter out the source document
     const filtered = rows.filter(r => r.id !== id).slice(0, nResults);
+    return rowsToResult(filtered);
+  }
 
-    return {
-      ids: filtered.map(r => r.id),
-      documents: filtered.map(r => r.document),
-      distances: filtered.map(r => r.distance),
-      metadatas: filtered.map(r => JSON.parse(r.metadata)),
-    };
+  async queryByVector(vector: number[], nResults: number = 5): Promise<VectorQueryResult> {
+    if (!this.db) throw new Error('sqlite-vec not connected');
+
+    const rows = this.db.prepare(`
+      SELECT v.id, vec_distance_L2(v.embedding, ?) AS distance, m.document, m.metadata
+      FROM ${this.collectionName}_vec v
+      JOIN ${this.collectionName}_meta m ON v.id = m.id
+      ORDER BY distance
+      LIMIT ?
+    `).all(toBlob(vector), nResults) as SqliteVecRow[];
+
+    return rowsToResult(rows);
   }
 
   async getStats(): Promise<{ count: number }> {
