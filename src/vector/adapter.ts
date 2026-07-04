@@ -53,6 +53,7 @@ export interface VectorStoreAdapter {
   replaceDocuments?(docs: VectorDocument[]): Promise<void>;
   query(text: string, limit?: number, where?: Record<string, any>): Promise<VectorQueryResult>;
   queryById(id: string, nResults?: number): Promise<VectorQueryResult>;
+  queryByVector?(vector: number[], nResults?: number): Promise<VectorQueryResult>;
   getStats(): Promise<{ count: number }>;
   getCollectionInfo(): Promise<{ count: number; name: string }>;
   getAllEmbeddings?(limit?: number): Promise<{
