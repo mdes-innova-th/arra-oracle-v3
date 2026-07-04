@@ -68,6 +68,13 @@ export class LanceDBAdapter implements VectorStoreAdapter {
     }
   }
 
+  private rowsToQueryResult(rows: any[]): VectorQueryResult {
+    return {
+      ids: rows.map((r: any) => r.id), documents: rows.map((r: any) => r.text),
+      distances: rows.map((r: any) => r._distance ?? 0), metadatas: rows.map((r: any) => JSON.parse(r.metadata || '{}')),
+    };
+  }
+
   async deleteCollection(): Promise<void> {
     if (!this.db) throw new Error('LanceDB not connected');
 
@@ -155,7 +162,6 @@ export class LanceDBAdapter implements VectorStoreAdapter {
   async query(text: string, limit: number = 10, where?: Record<string, any>): Promise<VectorQueryResult> {
     if (!this.table) await this.ensureCollection();
     await this.checkoutLatest();
-
     const [queryEmbedding] = await this.embedder.embed([text], 'query');
 
     // Fetch extra results if filtering in JS (metadata is stored as string, not binary)
@@ -171,12 +177,7 @@ export class LanceDBAdapter implements VectorStoreAdapter {
       }).slice(0, limit);
     }
 
-    return {
-      ids: filtered.map((r: any) => r.id),
-      documents: filtered.map((r: any) => r.text),
-      distances: filtered.map((r: any) => r._distance ?? 0),
-      metadatas: filtered.map((r: any) => JSON.parse(r.metadata || '{}')),
-    };
+    return this.rowsToQueryResult(filtered);
   }
 
   async queryById(id: string, nResults: number = 5): Promise<VectorQueryResult> {
@@ -191,15 +192,15 @@ export class LanceDBAdapter implements VectorStoreAdapter {
 
     const vector = Array.from(rows[0].vector);
     const results = await this.table.search(vector).distanceType('cosine').limit(nResults + 1).toArray();
-
     const filtered = results.filter((r: any) => r.id !== id).slice(0, nResults);
+    return this.rowsToQueryResult(filtered);
+  }
 
-    return {
-      ids: filtered.map((r: any) => r.id),
-      documents: filtered.map((r: any) => r.text),
-      distances: filtered.map((r: any) => r._distance ?? 0),
-      metadatas: filtered.map((r: any) => JSON.parse(r.metadata || '{}')),
-    };
+  async queryByVector(vector: number[], nResults: number = 5): Promise<VectorQueryResult> {
+    if (!this.table) await this.ensureCollection();
+    await this.checkoutLatest();
+    const results = await this.table.search(vector).distanceType('cosine').limit(nResults).toArray();
+    return this.rowsToQueryResult(results);
   }
 
   async getStats(): Promise<{ count: number }> {

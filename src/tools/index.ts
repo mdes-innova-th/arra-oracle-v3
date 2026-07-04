@@ -32,6 +32,11 @@ export {
   combineResults,
   vectorSearch,
 } from './search.ts';
+export {
+  chainSearchToolDef,
+  handleChainSearch,
+  type OracleSearchChainInput,
+} from './chain-search.ts';
 
 // Learn (+ pure helpers)
 export {
