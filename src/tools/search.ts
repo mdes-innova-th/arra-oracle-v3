@@ -11,6 +11,7 @@ export {
   sanitizeFtsQuery,
 } from './search/helpers.ts';
 export { vectorSearch } from './search/vector.ts';
+export { chainSearch, type ChainSearchHop, type ChainSearchInput, type ChainSearchResult } from './search/chain.ts';
 export {
   applyEntityLinkBoost,
   hasEntityLinkSearchHook,
