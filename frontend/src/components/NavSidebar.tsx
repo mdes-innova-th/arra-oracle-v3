@@ -48,15 +48,15 @@ function navClass({ isActive }: { isActive: boolean }) {
 export function NavSidebar({ items }: { items: NavItem[] }) {
   const groups = groupedItems(items);
   return (
-    <aside aria-label="Application navigation" className="sticky top-2 z-20 min-w-0 lg:top-4 lg:h-[calc(100vh-2rem)]">
-      <div className="flex h-full min-w-0 flex-col gap-4 overflow-hidden rounded-3xl border border-[oklch(1_0_0/0.08)] bg-[oklch(0.16_0.02_265/0.35)] p-3 shadow-[0_8px_32px_oklch(0_0_0/0.4)] backdrop-blur-xl sm:p-4">
+    <aside aria-label="Application navigation" className="z-20 min-w-0 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)]">
+      <div className="flex min-w-0 flex-col gap-4 overflow-hidden rounded-3xl border border-[oklch(1_0_0/0.08)] bg-[oklch(0.16_0.02_265/0.35)] p-3 shadow-[0_8px_32px_oklch(0_0_0/0.4)] backdrop-blur-xl sm:p-4 lg:max-h-[calc(100dvh-2rem)]">
         <NavLink to="/menu" aria-label="Arra Oracle control surface home" className="focus-ring min-w-0 rounded-2xl p-2">
           <p className="text-xs font-medium uppercase tracking-[0.28em] text-accent">Arra Oracle</p>
           <h1 className="mt-2 text-xl font-bold tracking-tight text-text sm:text-2xl">Control Surface</h1>
           <p className="mt-2 text-sm text-text-muted">React routes over the Elysia API.</p>
         </NavLink>
 
-        <nav aria-label="Frontend sections" className="flex min-w-0 max-w-full gap-3 overflow-x-auto pb-1 lg:min-h-0 lg:flex-col lg:overflow-y-auto lg:pb-0">
+        <nav aria-label="Frontend sections" className="hide-scrollbar flex min-w-0 max-w-full gap-3 overflow-x-auto pb-1 lg:min-h-0 lg:flex-col lg:overflow-y-auto lg:overscroll-contain lg:pb-0">
           {groups.map((group) => (
             <section key={group.label} aria-label={`${group.label} navigation`} className="grid min-w-[12rem] gap-2 lg:min-w-0">
               <p className="px-2 text-[0.65rem] font-semibold uppercase tracking-[0.24em] text-text-muted">{group.label}</p>
