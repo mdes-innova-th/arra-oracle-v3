@@ -9,8 +9,10 @@ import { Elysia } from 'elysia';
 import { searchEndpoint } from './search.ts';
 import { reflectEndpoint } from './reflect.ts';
 import { listEndpoint } from './list.ts';
+import { chainSearchEndpoint } from './chain.ts';
 
 export const searchRoutes = new Elysia({ prefix: '/api' })
   .use(searchEndpoint)
   .use(reflectEndpoint)
-  .use(listEndpoint);
+  .use(listEndpoint)
+  .use(chainSearchEndpoint);

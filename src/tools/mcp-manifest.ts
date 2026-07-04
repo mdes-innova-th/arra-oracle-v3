@@ -2,6 +2,7 @@ import type { UnifiedMcpToolManifest } from '../plugins/unified-manifest.ts';
 import { GUIDE_TOOL_NAME, guideToolDefinition, guideToolResponse } from '../mcp/guide.ts';
 import type { ToolContext, ToolResponse } from './types.ts';
 import { recapToolDef, handleRecap } from './recap.ts';
+import { chainSearchToolDef, handleChainSearch } from './chain-search.ts';
 import { searchToolDef, handleSearch } from './search.ts';
 import { readToolDef, handleRead } from './read.ts';
 import { learnToolDef, handleLearn } from './learn.ts';
@@ -51,6 +52,7 @@ export const mcpTools: RuntimeMcpToolManifest[] = [
   { ...guideToolDefinition(), group: 'guide', readOnly: true, enabledByDefault: true, handlerId: 'guide', handler: (_input, runtime) => guideToolResponse(runtime.version) },
   ctxTool(recapToolDef, 'oracle', true, 'handleRecap', handleRecap),
   ctxTool(searchToolDef, 'search', true, 'handleSearch', handleSearch),
+  ctxTool(chainSearchToolDef, 'search', false, 'handleChainSearch', handleChainSearch),
   ctxTool(readToolDef, 'search', true, 'handleRead', handleRead),
   ctxTool(learnToolDef, 'knowledge', false, 'handleLearn', handleLearn),
   ctxTool(listToolDef, 'search', true, 'handleList', handleList),
