@@ -16,6 +16,7 @@ const DEFAULT_ORIGINS = [
   'https://arra-oracle-studio.laris.workers.dev',
   'https://studio.buildwithoracle.com',
   'https://feed.buildwithoracle.com',
+  'https://v4.buildwithoracle.com',
 ] as const;
 const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as const;
 const ALLOWED_HEADERS = [
@@ -86,9 +87,22 @@ export function parseCorsOrigins(value = configuredOrigins()): CorsPolicy {
   };
 }
 
+const TRUSTED_ORIGIN_SUFFIX = '.buildwithoracle.com';
+
+function isTrustedSubdomain(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return url.protocol === 'https:' && (url.hostname.endsWith(TRUSTED_ORIGIN_SUFFIX) || url.hostname === TRUSTED_ORIGIN_SUFFIX.slice(1));
+  } catch {
+    return false;
+  }
+}
+
 export function allowedCorsOrigin(origin: string | null | undefined, policy = parseCorsOrigins()): string | null {
   const normalized = origin ? normalizeOrigin(origin) : null;
-  return normalized && policy.origins.includes(normalized) ? normalized : null;
+  if (!normalized) return null;
+  if (policy.origins.includes(normalized)) return normalized;
+  return isTrustedSubdomain(normalized) ? normalized : null;
 }
 
 type MutableHeaders = Record<string, string | number | string[]>;
