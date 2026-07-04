@@ -114,6 +114,9 @@ body {
   outline-offset: 3px;
 }
 
+.hide-scrollbar { scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+
 
 .status-success,
 .status-ok {
