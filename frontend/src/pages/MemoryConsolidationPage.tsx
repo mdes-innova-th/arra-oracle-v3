@@ -2,26 +2,21 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../api';
 import { memoryPath } from '../routePaths';
+import {
+  EmptyState,
+  SuggestionCard,
+  Summary,
+  percent,
+  suggestionsFromPayload,
+  normalizeSuggestion,
+  type ConsolidationSuggestion,
+} from './memoryConsolidationView';
+
+export { normalizeSuggestion, type ConsolidationSuggestion };
 
 type LoadState = 'loading' | 'ready' | 'error';
 type ReviewAction = 'approve' | 'reject';
 type ReviewStatus = Record<string, string>;
-
-export type ConsolidationDoc = {
-  id: string;
-  title: string;
-  sourceFile?: string;
-  type?: string;
-  content?: string;
-};
-
-export type ConsolidationSuggestion = {
-  id: string;
-  original: ConsolidationDoc;
-  suggested: ConsolidationDoc;
-  confidence: number;
-  reason: string;
-};
 
 type QueueClient = {
   list: () => Promise<ConsolidationSuggestion[]>;
@@ -32,51 +27,6 @@ type Props = { client?: QueueClient; initialSuggestions?: ConsolidationSuggestio
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
-}
-
-function text(value: unknown, fallback = ''): string {
-  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
-}
-
-function numeric(value: unknown, fallback = 0): number {
-  const n = Number(value);
-  return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : fallback;
-}
-
-function docFrom(value: unknown, idFallback: string): ConsolidationDoc {
-  const row = isRecord(value) ? value : {};
-  const id = text(row.id ?? row.documentId ?? row.docId, idFallback);
-  const title = text(row.title ?? row.sourceFile ?? row.source_file, id);
-  return {
-    id,
-    title,
-    sourceFile: text(row.sourceFile ?? row.source_file, ''),
-    type: text(row.type, ''),
-    content: text(row.content ?? row.preview ?? row.excerpt, ''),
-  };
-}
-
-export function normalizeSuggestion(value: unknown): ConsolidationSuggestion | null {
-  if (!isRecord(value)) return null;
-  const oldId = text(value.oldId ?? value.old_id ?? value.originalId);
-  const newId = text(value.newId ?? value.new_id ?? value.suggestedId);
-  if (!oldId || !newId) return null;
-  const confidence = numeric(value.confidence ?? value.score ?? value.cosine, 0);
-  const id = text(value.id, `${oldId}->${newId}`);
-  return {
-    id,
-    original: docFrom(value.original ?? value.old ?? value.oldDoc, oldId),
-    suggested: docFrom(value.suggested ?? value.replacement ?? value.new ?? value.newDoc, newId),
-    confidence,
-    reason: text(value.reason, 'Memory consolidation suggested a supersede relationship.'),
-  };
-}
-
-function suggestionsFromPayload(payload: unknown): ConsolidationSuggestion[] {
-  const list = isRecord(payload)
-    ? payload.suggestions ?? payload.items ?? payload.plans ?? []
-    : payload;
-  return Array.isArray(list) ? list.map(normalizeSuggestion).filter((item): item is ConsolidationSuggestion => Boolean(item)) : [];
 }
 
 async function json<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -114,36 +64,6 @@ export const consolidationQueueClient: QueueClient = {
     if (!review.ok && review.status !== 404) throw new Error(`Reject failed (${review.status})`);
   },
 };
-
-function percent(value: number): string { return `${Math.round(value * 100)}%`; }
-function preview(doc: ConsolidationDoc): string { return doc.content || doc.sourceFile || doc.id; }
-
-function ConfidencePill({ score }: { score: number }) {
-  const tone = score >= 0.85 ? 'border-ok-border bg-ok-bg text-ok-text' : score >= 0.65 ? 'border-warn-border bg-warn-bg text-warn-text' : 'border-border bg-surface-muted text-text-muted';
-  return <span className={`rounded-full border px-3 py-1 text-sm font-semibold ${tone}`}>{percent(score)} confidence</span>;
-}
-
-function DocBlock({ label, doc }: { label: string; doc: ConsolidationDoc }) {
-  return (
-    <div className="min-w-0 rounded-2xl border border-border bg-surface p-4">
-      <p className="text-xs font-semibold text-text-muted">{label}</p>
-      <h3 className="mt-2 break-words text-base font-semibold text-text">{doc.title}</h3>
-      <p className="mt-2 line-clamp-3 text-sm text-text-muted">{preview(doc)}</p>
-      <p className="mt-3 font-mono text-xs text-text-muted">{doc.id}</p>
-    </div>
-  );
-}
-
-function EmptyState({ error }: { error?: string }) {
-  const title = error ? 'Consolidation queue unavailable' : 'No pending reviews';
-  const detail = error || 'Memory consolidation has no supersede suggestions awaiting human review.';
-  return (
-    <section className="rounded-3xl border border-border bg-surface p-6 text-sm text-text-muted">
-      <h2 className="text-lg font-semibold text-text">{title}</h2>
-      <p className="mt-2 max-w-2xl">{detail}</p>
-    </section>
-  );
-}
 
 export function MemoryConsolidationPage({ client = consolidationQueueClient, initialSuggestions }: Props) {
   const [state, setState] = useState<LoadState>(initialSuggestions ? 'ready' : 'loading');
@@ -216,29 +136,14 @@ export function MemoryConsolidationPage({ client = consolidationQueueClient, ini
 
       <section className="grid gap-4" aria-label="Pending supersede suggestions">
         {items.map((item) => (
-          <article key={item.id} className="rounded-3xl border border-border bg-surface-muted p-4 sm:p-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <ConfidencePill score={item.confidence} />
-                <p className="mt-3 max-w-3xl text-sm text-text-muted">{item.reason}</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button className="focus-ring rounded-xl border border-border px-4 py-2 text-sm font-semibold text-text disabled:opacity-50" disabled={Boolean(busy[item.id])} type="button" onClick={() => void review(item, 'reject')}>{busy[item.id] === 'reject' ? 'Rejecting…' : 'Reject'}</button>
-                <button className="focus-ring rounded-xl bg-accent-solid px-4 py-2 text-sm font-semibold text-on-accent disabled:opacity-50" disabled={Boolean(busy[item.id])} type="button" onClick={() => void review(item, 'approve')}>{busy[item.id] === 'approve' ? 'Approving…' : 'Approve'}</button>
-              </div>
-            </div>
-            <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-stretch">
-              <DocBlock label="Original doc" doc={item.original} />
-              <div className="flex items-center justify-center text-sm font-semibold text-text-muted" aria-hidden="true">superseded by</div>
-              <DocBlock label="Suggested supersede" doc={item.suggested} />
-            </div>
-          </article>
+          <SuggestionCard key={item.id} item={item} actions={(
+            <>
+              <button className="focus-ring rounded-xl border border-border px-4 py-2 text-sm font-semibold text-text disabled:opacity-50" disabled={Boolean(busy[item.id])} type="button" onClick={() => void review(item, 'reject')}>{busy[item.id] === 'reject' ? 'Rejecting…' : 'Reject'}</button>
+              <button className="focus-ring rounded-xl bg-accent-solid px-4 py-2 text-sm font-semibold text-on-accent disabled:opacity-50" disabled={Boolean(busy[item.id])} type="button" onClick={() => void review(item, 'approve')}>{busy[item.id] === 'approve' ? 'Approving…' : 'Approve'}</button>
+            </>
+          )} />
         ))}
       </section>
     </div>
   );
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-2xl border border-border bg-surface p-4"><p className="text-sm text-text-muted">{label}</p><p className="mt-1 text-2xl font-semibold text-text">{value}</p></div>;
 }
