@@ -3,6 +3,7 @@ export const AS_OF_SUPPORTED_ENDPOINTS = [
   '/api/list',
   '/api/vector/search',
   '/api/ask',
+  '/api/memory/fanout',
   '/api/memory/recall',
   '/api/memory/search',
 ] as const;

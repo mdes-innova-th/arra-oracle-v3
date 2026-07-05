@@ -55,11 +55,11 @@ beforeAll(async () => {
   ({ entityKey } = await import('../../src/search/entity-ranking.ts'));
   const { createApiVersionedFetch } = await import('../../src/middleware/api-version.ts');
   const { createMemoryFanoutEndpoint } = await import('../../src/routes/memory/fanout.ts');
-  fanoutFetch = createApiVersionedFetch((req) => new Elysia({ prefix: '/api' }).use(createMemoryFanoutEndpoint({
+  fanoutFetch = createApiVersionedFetch(createTenantFetch((req) => new Elysia({ prefix: '/api' }).use(createMemoryFanoutEndpoint({
     models: () => ({ eval: { collection: 'eval', model: 'eval' } }),
     confidenceWeight: 0,
     connect: async () => ({ query: async (q) => fanoutResult(q) }),
-  })).handle(req));
+  })).handle(req)));
   seed();
 });
 
@@ -91,21 +91,19 @@ describe('Phase 1 entity golden eval baseline', () => {
     expect(ids(await fanout(q))).toEqual([item.plain, item.linked]);
   });
 
-  test('tenant isolation blocks cross-tenant entity matches in search and ask; fanout currently has no tenant guard', async () => {
+  test('tenant isolation blocks cross-tenant entity matches in search, ask, and fanout', async () => {
     const q = `${cases.tenant.entity} ${cases.tenant.anchor}`;
     expect(ids(await search(q))).toEqual([cases.tenant.plain]);
     expect((await askJson(q)).citations.map((item) => item.id)).toEqual([cases.tenant.plain]);
-    expect(ids(await fanout(q))).toEqual([cases.tenant.linked, cases.tenant.plain]);
+    expect(ids(await fanout(q))).toEqual([cases.tenant.plain]);
   });
 
-  test('asOf filters stale entity matches in search and ask; fanout currently returns stale vector hits', async () => {
+  test('asOf filters stale entity matches in search, ask, and fanout', async () => {
     const q = `${cases.stale.entity} ${cases.stale.anchor}`;
     const asOf = '2026-01-01T00:00:00.000Z';
     expect(ids(await search(q, `&asOf=${encodeURIComponent(asOf)}`))).toEqual([cases.stale.current]);
     expect((await askJson(q, { asOf })).citations.map((item) => item.id)).toEqual([cases.stale.current]);
-    const body = await fanout(q);
-    expect(ids(body)).toEqual([cases.stale.old, cases.stale.current]);
-    expect(body.warnings?.[0]).toContain(cases.stale.current);
+    expect(ids(await fanout(q, `&asOf=${encodeURIComponent(asOf)}`))).toEqual([cases.stale.current]);
   });
 
   test('entity-only sidecar hits do not appear unless the document is already a retrieval candidate', async () => {
@@ -169,8 +167,10 @@ async function askJson(q: string, extra: Record<string, unknown> = {}): Promise<
   return res.json();
 }
 
-async function fanout(q: string): Promise<FanoutBody> {
-  const res = await fanoutFetch(new Request(`http://local/api/v1/memory/fanout?q=${encodeURIComponent(q)}&limit=5`));
+async function fanout(q: string, suffix = ''): Promise<FanoutBody> {
+  const res = await fanoutFetch(new Request(`http://local/api/v1/memory/fanout?q=${encodeURIComponent(q)}&limit=5${suffix}`, {
+    headers: { [tenantHeader]: tenantA },
+  }));
   expect(res.status).toBe(200);
   return res.json();
 }
