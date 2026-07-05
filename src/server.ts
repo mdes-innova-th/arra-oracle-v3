@@ -73,6 +73,7 @@ import { watcherRoutes } from './routes/watcher/index.ts';
 import { indexerRoutes } from './routes/indexer/index.ts';
 import { fileWatcherService } from './services/file-watcher.ts';
 import { createSleepConsolidationWorker } from './workers/sleep-consolidation.ts';
+import { createEntityBackfillWorker } from './workers/entity-backfill.ts';
 import { gatewayPlugin } from './gateway/index.ts';
 import { simpleModeResponse } from './simple-mode.ts';
 import pkg from '../package.json' with { type: 'json' };
@@ -170,8 +171,10 @@ export async function createStartedApp(options: StartServerOptions = {}): Promis
   }
   if (process.env.ORACLE_FILE_WATCHER !== '0') fileWatcherService.start();
   const consolidationWorker = createSleepConsolidationWorker(sqlite);
+  const entityBackfillWorker = createEntityBackfillWorker(sqlite);
   consolidationWorker.start();
-  registerGracefulShutdown({ close: async () => consolidationWorker.stop() });
+  entityBackfillWorker.start();
+  registerGracefulShutdown({ close: async () => { consolidationWorker.stop(); entityBackfillWorker.stop(); } });
 
   const pluginDirs = defaultUnifiedPluginDirs([join(import.meta.dir, 'plugins')]);
   const pluginWarn = (message: string) => console.warn(message);
