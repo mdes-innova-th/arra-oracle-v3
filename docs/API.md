@@ -4,7 +4,9 @@ Verified against `src/server.ts`, `src/routes/*`, `src/tools/mcp-manifest.ts`,
 and `src/tools/mcp-rest-map.ts` on 2026-06-17. The internal Elysia routes are
 mounted under `/api/*`; the runnable server redirects most unversioned `/api/*`
 requests to `/api/v1/*` and rewrites them internally. `/api/health` stays
-unversioned for probes. Swagger UI is `/api/docs`; JSON is `/api/docs/json`.
+unversioned for probes. Hosted legacy Studio/Feed origins have a narrow
+unversioned browser-compatibility exception; CLI and local callers should expect
+the 308 redirect. Swagger UI is `/api/docs`; JSON is `/api/docs/json`.
 
 ## Auth, tenants, and errors
 

@@ -32,7 +32,8 @@ Order:
 3. `createRequestDedupFetch` (`src/middleware/dedup.ts`)
    - Coalesces `GET`/`HEAD` by URL plus auth, cookie, range, accept, and tenant headers.
 4. `createApiVersionedFetch` (`src/middleware/api-version.ts`)
-   - Rewrites `/api/v1/*` internally to `/api/*`; redirects unversioned API callers to `/api/v1/*` except infrastructure paths such as `/api/health`.
+   - Rewrites `/api/v1/*` internally to `/api/*`; redirects unversioned API callers to `/api/v1/*` except the exact infrastructure path `/api/health`.
+   - Temporary compatibility: hosted legacy Studio/Feed origins are allowed to call old unversioned API paths directly; localhost and CLI callers still receive 308 redirects.
 5. `createTenantFetch` (`src/middleware/tenant.ts`)
    - Config: `ORACLE_TENANT_TOKENS`, `ORACLE_TENANT_API_KEYS`.
    - Headers: `X-Oracle-Tenant`, `X-Oracle-Tenant-Token`; aliases `X-Tenant-ID`, `X-Org-Id`, `X-API-Key`.
