@@ -9,11 +9,11 @@ describe('P0 first-run config defaults', () => {
     const provider = resolveEmbeddingProvider(defaults, 'defaults', []);
 
     expect(defaults.enabled).toBe(false);
-    expect(defaults.collections['bge-m3']).toMatchObject({ adapter: 'lancedb', provider: 'ollama', primary: true });
+    expect(defaults.collections['bge-m3']).toMatchObject({ adapter: 'sqlite-vec', provider: 'ollama', primary: true });
     expect(backend).toMatchObject({
-      engine: 'lancedb',
+      engine: 'sqlite-vec',
       source: 'first-run-default',
-      dataPath: defaultDataPathForEngine('lancedb'),
+      dataPath: defaultDataPathForEngine('sqlite-vec'),
       localDefault: true,
       returningUser: false,
       providerPrompt: false,

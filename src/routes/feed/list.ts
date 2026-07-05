@@ -5,7 +5,9 @@ import { currentTenantId, tenantDataPath, TENANT_HEADER } from '../../middleware
 import { feedTimestampMs, normalizeFeedLimit, parseLocalEvent, parseMawEvent, type FeedEvent } from '../../feed/events.ts';
 import { FeedQuery } from './model.ts';
 
-const MAW_JS_URL = process.env.MAW_JS_URL || 'http://localhost:3456';
+function mawJsUrl(): string {
+  return (process.env.MAW_JS_URL || 'http://localhost:3456').replace(/\/$/, '');
+}
 
 export const listFeedRoute = new Elysia().get('/', async ({ query, set }) => {
   try {
@@ -24,7 +26,7 @@ export const listFeedRoute = new Elysia().get('/', async ({ query, set }) => {
     }
 
     try {
-      const mawRes = await fetch(`${MAW_JS_URL}/api/feed?limit=100`, {
+      const mawRes = await fetch(`${mawJsUrl()}/api/feed?limit=100`, {
         headers: tenantId ? { [TENANT_HEADER]: tenantId } : undefined,
         signal: AbortSignal.timeout(2000),
       });
