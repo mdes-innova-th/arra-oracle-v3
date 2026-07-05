@@ -52,6 +52,22 @@ test('fanout query runs targets in parallel and preserves partial errors', async
   expect(response.errors).toEqual({ turbovec: 'backend down' });
 });
 
+test('fanout query maps cosine distances with the shared scoring helper', async () => {
+  const response = await queryFanout({
+    text: 'oracle',
+    limit: 3,
+    targets: [{
+      key: 'lancedb',
+      store: { query: async () => ({ ids: ['same', 'orthogonal', 'opposite'], documents: ['', '', ''], distances: [0, 1, 2], metadatas: [{}, {}, {}] }) },
+    }],
+  });
+
+  expect(response.results.map((item) => [item.id, item.score])).toEqual([
+    ['same', 1],
+    ['orthogonal', 0.5],
+    ['opposite', 0],
+  ]);
+});
 
 test('fanout query normalizes bad limits and non-finite distances', async () => {
   let seenLimit = 0;

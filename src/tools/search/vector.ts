@@ -1,5 +1,6 @@
 import { ensureVectorStoreConnected } from '../../vector/factory.ts';
 import { currentTenantId } from '../../middleware/tenant.ts';
+import { cosineDistanceToSimilarity } from '../../vector/scoring.ts';
 import type { ToolContext } from '../types.ts';
 import { parseConceptsFromMetadata } from './helpers.ts';
 import type { VectorResult } from './types.ts';
@@ -41,13 +42,14 @@ export async function vectorSearch(
       if (allowedIds && !allowedIds.has(id)) continue;
       const metadata = results.metadatas[i] as Record<string, unknown> | null;
       const rawDistance = results.distances[i] || 0;
+      const score = cosineDistanceToSimilarity(rawDistance);
       mappedResults.push({
         id,
         type: (metadata?.type as string) || 'unknown',
         content: (results.documents[i] || '').substring(0, 500),
         source_file: (metadata?.source_file as string) || '',
         concepts: parseConceptsFromMetadata(metadata?.concepts),
-        score: rawDistance,
+        score,
         distance: rawDistance,
         model: resolvedModelName,
         source: 'vector',

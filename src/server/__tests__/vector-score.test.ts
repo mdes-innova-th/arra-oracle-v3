@@ -1,10 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { cosineDistanceToSimilarity } from '../handlers.ts';
+import { cosineDistanceToSimilarity } from '../../vector/scoring.ts';
 
 describe('cosineDistanceToSimilarity', () => {
   test('maps LanceDB cosine distance across the full 0..1 relevance range', () => {
-    const scores = [0, 0.5, 1, 1.5, 2].map(cosineDistanceToSimilarity);
+    expect([0, 1, 2].map(cosineDistanceToSimilarity)).toEqual([1, 0.5, 0]);
 
+    const scores = [0, 0.5, 1, 1.5, 2].map(cosineDistanceToSimilarity);
     expect(scores).toEqual([1, 0.75, 0.5, 0.25, 0]);
     expect(Math.max(...scores)).toBeLessThanOrEqual(1);
     expect(Math.min(...scores)).toBeGreaterThanOrEqual(0);

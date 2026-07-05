@@ -23,6 +23,7 @@ function createFetch(
       requested.push(collection ?? '');
       return store;
     },
+    boostResults: (_db, hits) => hits,
   }));
   return { fetcher: createApiVersionedFetch((request) => app.handle(request)), requested, store };
 }
@@ -87,6 +88,24 @@ test('GET /api/v1/vector/search accepts JSON metadata filters and distance sort'
   expect(res.status).toBe(200);
   expect(body.sort).toEqual({ field: 'distance', order: 'asc' });
   expect(body.results.map((item) => item.id)).toEqual(['doc-b', 'doc-a']);
+});
+
+test('GET /api/v1/vector/search maps cosine distances to similarity scores', async () => {
+  const { fetcher } = createFetch({
+    ids: ['same', 'orthogonal', 'opposite'],
+    documents: ['same body', 'orthogonal body', 'opposite body'],
+    distances: [0, 1, 2],
+    metadatas: [{ type: 'note' }, { type: 'note' }, { type: 'note' }],
+  });
+  const res = await fetcher(new Request('http://local/api/v1/vector/search?q=oracle&limit=3'));
+  const body = await res.json() as { results: Array<{ id: string; score: number }> };
+
+  expect(res.status).toBe(200);
+  expect(body.results.map((item) => [item.id, item.score])).toEqual([
+    ['same', 1],
+    ['orthogonal', 0.5],
+    ['opposite', 0],
+  ]);
 });
 
 test('GET /api/v1/vector/search scopes results by resolved tenant', async () => {

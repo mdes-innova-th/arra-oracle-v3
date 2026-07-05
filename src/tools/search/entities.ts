@@ -5,6 +5,7 @@ import {
   getEmbeddingModels,
   type EmbeddingModelConfig,
 } from '../../vector/factory.ts';
+import { cosineDistanceToSimilarity } from '../../vector/scoring.ts';
 import type { VectorQueryResult, VectorStoreAdapter } from '../../vector/types.ts';
 import type { ToolContext } from '../types.ts';
 import type { CombinedSearchResult } from './types.ts';
@@ -106,7 +107,7 @@ function hitsFromQuery(result: VectorQueryResult): EntityLinkHit[] {
     return {
       sourceDocId: String(metadata.source_doc_id ?? ''),
       entity: String(metadata.entity ?? result.documents?.[index] ?? ''),
-      score: 1 / (1 + Math.max(0, distance) / 100),
+      score: cosineDistanceToSimilarity(distance),
       distance,
     };
   });

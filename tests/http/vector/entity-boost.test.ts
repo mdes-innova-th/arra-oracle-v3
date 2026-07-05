@@ -59,7 +59,7 @@ async function vectorResult(): Promise<VectorQueryResult> {
   return {
     ids: [plain, linked, otherTenant],
     documents: ['plain AP candidate', 'linked AP candidate', 'other tenant AP candidate'],
-    distances: [0, 10, 10],
+    distances: [0, 0.8, 0.8],
     metadatas: [
       { type: 'learning', tenant_id: tenantA, source_file: `ψ/entities/${plain}.md`, concepts: ['alpha'] },
       { type: 'learning', tenant_id: tenantA, source_file: `ψ/entities/${linked}.md`, concepts: ['alpha'] },

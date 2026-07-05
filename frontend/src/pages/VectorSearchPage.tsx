@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { apiClient, type ApiClient, type VectorIndexModelsResponse } from '../api/client';
 import { MemoryHealthPanel, MemorySignalBadges } from '../components/MemoryHealthPanel';
 import { SearchResultSignals } from '../components/SearchResultSignals';
+import { cosineDistanceToSimilarity } from '../../../src/vector/scoring';
 import type { VectorSearchResponse } from '../../../src/server/types';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
@@ -50,7 +51,7 @@ export function distanceLabel(result: Pick<VectorSearchResult, 'distance' | 'sco
 
 export function distancePercent(result: Pick<VectorSearchResult, 'distance' | 'score'>): number {
   if (typeof result.score === 'number' && Number.isFinite(result.score)) return Math.max(0, Math.min(100, result.score * 100));
-  if (typeof result.distance === 'number' && Number.isFinite(result.distance)) return Math.max(0, Math.min(100, (1 / (1 + Math.max(0, result.distance))) * 100));
+  if (typeof result.distance === 'number' && Number.isFinite(result.distance)) return cosineDistanceToSimilarity(result.distance) * 100;
   return 0;
 }
 

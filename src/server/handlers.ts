@@ -23,6 +23,7 @@ import { buildLearningMarkdown, dateSlug } from '../learn/markdown.ts';
 import { localNativeVectorDisabledReason, localVectorIndexMissingReason, logLocalVectorDisabled, noteLocalVectorEnabled } from '../vector/cpu-capabilities.ts';
 import { isVectorSectionEnabled } from '../vector/config.ts';
 import { candidatePoolSize } from '../search/retrieve-depth.ts';
+export { cosineDistanceToSimilarity } from '../vector/scoring.ts';
 
 // Module-level proxy instance — bound to VECTOR_URL at boot. If VECTOR_URL is
 // unset, this is null and the local vector adapter runs in-process (legacy
@@ -71,17 +72,6 @@ function runFtsAll<T>(stmt: { all: (...args: any[]) => T[] }, args: unknown[]): 
     console.warn('[FTS5] MATCH query failed; degrading to empty keyword leg:', error instanceof Error ? error.message : String(error));
     return [];
   }
-}
-
-/**
- * LanceDB is configured for cosine distance, where nearest-neighbor distances
- * are in the 0..2 range: 0 means identical, 2 means opposite. Convert that
- * directly to a bounded relevance score instead of using the old L2 scaling
- * formula, which saturated normal cosine distances around 0.99.
- */
-export function cosineDistanceToSimilarity(distance: number): number {
-  if (!Number.isFinite(distance)) return 0;
-  return Math.max(0, Math.min(1, 1 - distance / 2));
 }
 
 /**

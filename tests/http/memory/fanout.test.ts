@@ -27,7 +27,7 @@ function confidenceFixture(): VectorQueryResult {
       'Oracle deploy confidence ranking note',
       'Oracle deploy confidence ranking note',
     ],
-    distances: [0, 10],
+    distances: [0, 0.8],
     metadatas: [
       { type: 'memory', createdAt: '2020-01-01T00:00:00.000Z' },
       {
