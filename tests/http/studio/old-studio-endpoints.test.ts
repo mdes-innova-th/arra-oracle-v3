@@ -5,6 +5,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+await import('../../../src/config.ts');
+
 const scratch = mkdtempSync(join(tmpdir(), 'old-studio-endpoints-'));
 const originalEnv = {
   dataDir: process.env.ORACLE_DATA_DIR,

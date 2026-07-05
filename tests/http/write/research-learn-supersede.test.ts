@@ -5,6 +5,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
+await import('../../../src/config.ts');
+
 const savedDataDir = process.env.ORACLE_DATA_DIR;
 const savedDbPath = process.env.ORACLE_DB_PATH;
 const savedRepoRoot = process.env.ORACLE_REPO_ROOT;
