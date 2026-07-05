@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { ORACLE_DATA_DIR } from '../../config.ts';
 import { introspectDrizzleTables } from '../../cli/commands/backup.ts';
+import { isMissingTableError } from '../../db/errors.ts';
 import type { DatabaseConnection } from '../../db/index.ts';
 import { createStorageBackend } from '../../storage/registry.ts';
 import {
@@ -56,10 +57,6 @@ function selectRows(connection: QueryConnection, table: ExportTable): ExportReco
     if (isMissingTableError(error)) return [];
     throw error;
   }
-}
-
-function isMissingTableError(error: unknown): boolean {
-  return String(error instanceof Error ? error.message : error).toLowerCase().includes('no such table:');
 }
 
 function readCollectionRows(connection: QueryConnection, collection: string): ExportRecord[] | null {

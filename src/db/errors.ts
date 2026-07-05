@@ -1,3 +1,4 @@
 export function isMissingTableError(error: unknown): boolean {
-  return String(error instanceof Error ? error.message : error).toLowerCase().includes('no such table:');
+  const message = String(error instanceof Error ? error.message : error);
+  return /\bno such table\s*:/i.test(message);
 }

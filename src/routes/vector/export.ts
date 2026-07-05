@@ -54,11 +54,15 @@ function progressStream(getStore: GetStore, collection: string): ReadableStream<
         const message = error instanceof Error ? error.message : String(error);
         controller.enqueue(progressEvent('error', { error: 'Vector export progress failed', message }));
       } finally {
-        await store?.close().catch(() => {});
+        await closeStore(store);
         controller.close();
       }
     },
   });
+}
+
+async function closeStore(store?: Pick<VectorStoreAdapter, 'close'>): Promise<void> {
+  await store?.close?.().catch(() => {});
 }
 
 function modelCollectionName(model: unknown): string | null {
@@ -195,7 +199,7 @@ export function createVectorExportEndpoint(deps: VectorExportDeps = {}) {
           : 'Vector export failed';
         return { error: label, message };
       } finally {
-        await store.close().catch(() => {});
+        await closeStore(store);
       }
     }, {
       query: t.Object({
