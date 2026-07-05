@@ -1,6 +1,7 @@
 import type { VectorQueryResult } from '../../vector/types.ts';
 import { linkTraces } from '../../trace/links.ts';
 import { createTrace } from '../../trace/store.ts';
+import { cosineDistanceToSimilarity } from '../../vector/scoring.ts';
 import type { FoundFile } from '../../trace/types.ts';
 import type { ToolContext } from '../types.ts';
 import { parseConceptsFromMetadata } from './helpers.ts';
@@ -46,10 +47,12 @@ function clampLimit(value: number | undefined, fallback: number): number {
 }
 
 function rankScore(result: Pick<VectorResult, 'distance' | 'score'>): number {
-  const raw = Number.isFinite(result.distance) ? result.distance : result.score;
-  if (!Number.isFinite(raw)) return 0;
-  if (raw >= 0 && raw <= 1) return 1 - raw;
-  return 1 / (1 + Math.max(0, raw));
+  if (typeof result.score === 'number' && Number.isFinite(result.score)) {
+    return Math.max(0, Math.min(1, result.score));
+  }
+  return typeof result.distance === 'number' && Number.isFinite(result.distance)
+    ? cosineDistanceToSimilarity(result.distance)
+    : 0;
 }
 
 function traceType(type: string): FoundFile['type'] {
@@ -77,7 +80,7 @@ function mapQueryById(result: VectorQueryResult, model: string | undefined): Vec
       content: (result.documents[i] || '').substring(0, 500),
       source_file: (metadata?.source_file as string) || '',
       concepts: parseConceptsFromMetadata(metadata?.concepts),
-      score: distance,
+      score: cosineDistanceToSimilarity(distance),
       distance,
       model: model || 'bge-m3',
       source: 'vector',

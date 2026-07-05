@@ -1,3 +1,5 @@
+import { cosineDistanceToSimilarity } from './scoring.ts';
+
 export interface FanOutHit {
   id: string;
   score?: number;
@@ -60,7 +62,7 @@ function uniqueCollections(collections: string[]): string[] {
 function scoreFor(hit: FanOutHit): number {
   if (typeof hit.score === 'number' && Number.isFinite(hit.score)) return clampScore(hit.score);
   if (typeof hit.distance === 'number' && Number.isFinite(hit.distance)) {
-    return clampScore(1 / (1 + Math.max(0, hit.distance)));
+    return cosineDistanceToSimilarity(hit.distance);
   }
   return 0;
 }

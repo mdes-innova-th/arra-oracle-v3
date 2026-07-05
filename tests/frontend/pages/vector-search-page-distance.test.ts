@@ -6,6 +6,6 @@ describe('VectorSearchPage distance helpers', () => {
     const result = { distance: 0.25 };
 
     expect(distanceLabel(result)).toBe('0.250');
-    expect(distancePercent(result)).toBe(80);
+    expect(distancePercent(result)).toBe(87.5);
   });
 });

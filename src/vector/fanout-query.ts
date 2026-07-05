@@ -1,5 +1,6 @@
 import type { SearchResult } from '../server/types.ts';
 import type { VectorQueryResult, VectorStoreAdapter } from './adapter.ts';
+import { cosineDistanceToSimilarity } from './scoring.ts';
 
 export type FanoutStrategy = 'merge';
 
@@ -102,7 +103,7 @@ function toSearchResults(backend: string, result: VectorQueryResult): SearchResu
       source_file: result.metadatas?.[i]?.source_file ?? '',
       concepts: [],
       source: 'vector' as const,
-      score: scoreFromDistance(distance),
+      score: cosineDistanceToSimilarity(distance),
       distance,
       model: backend,
     };
@@ -122,8 +123,4 @@ function finiteScore(score: unknown): number {
   return typeof score === 'number' && Number.isFinite(score)
     ? Math.max(0, Math.min(1, score))
     : 0;
-}
-
-function scoreFromDistance(distance: number): number {
-  return Math.max(0, Math.min(1, 1 / (1 + distance / 100)));
 }

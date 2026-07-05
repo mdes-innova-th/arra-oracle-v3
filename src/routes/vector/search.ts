@@ -6,6 +6,7 @@ import type { SearchResult } from '../../server/types.ts';
 import { filterResultsAsOf, parseAsOf } from '../../search/bitemporal.ts';
 import { attachSupersedeStatus, supersedeWarnings } from '../../search/supersede-status.ts';
 import { getEmbeddingModels, getVectorStoreByModel } from '../../vector/factory.ts';
+import { cosineDistanceToSimilarity } from '../../vector/scoring.ts';
 import type { VectorQueryResult, VectorStoreAdapter } from '../../vector/types.ts';
 import { asOfResponse } from '../search/asof.ts';
 import { applyVectorEntityBoost } from './entity-boost.ts';
@@ -13,7 +14,13 @@ import { applyVectorEntityBoost } from './entity-boost.ts';
 type SortField = 'score' | 'distance' | 'date' | 'id' | 'type' | 'source_file';
 type SortOrder = 'asc' | 'desc';
 type SearchStore = Pick<VectorStoreAdapter, 'connect' | 'ensureCollection' | 'query'> & Partial<Pick<VectorStoreAdapter, 'close'>>;
-interface VectorSearchDeps { getStore?: (collection?: string) => SearchStore; getModels?: () => Record<string, unknown>; asOfDb?: Database }
+type BoostResults = (db: Database, hits: SearchHit[], query: string, tenantId?: string) => SearchHit[];
+interface VectorSearchDeps {
+  getStore?: (collection?: string) => SearchStore;
+  getModels?: () => Record<string, unknown>;
+  asOfDb?: Database;
+  boostResults?: BoostResults;
+}
 type SearchHit = SearchResult & { metadata: Record<string, unknown> };
 
 const DEFAULT_COLLECTION = 'bge-m3', MAX_LIMIT = 100, MAX_FETCH = 1_000;
@@ -76,7 +83,7 @@ function toHits(result: VectorQueryResult, collection: string): SearchHit[] {
     return {
       id, type: text(metadata.type, 'unknown'), content: text(result.documents?.[index]),
       source_file: text(metadata.source_file ?? metadata.sourceFile), concepts: concepts(metadata.concepts), source: 'vector',
-      score: 1 / (1 + distance / 100), distance, model: collection, metadata,
+      score: cosineDistanceToSimilarity(distance), distance, model: collection, metadata,
     };
   });
 }
@@ -144,6 +151,7 @@ function filterAsOf(hits: SearchHit[], db: Database, asOfMs?: number): SearchHit
 
 export function createVectorSearchEndpoint(deps: VectorSearchDeps = {}) {
   const getModels = deps.getModels ?? getEmbeddingModels, getStore = deps.getStore ?? getVectorStoreByModel, asOfDb = deps.asOfDb ?? sqlite;
+  const boostResults = deps.boostResults ?? ((db, hits, query, tenantId) => applyVectorEntityBoost(db, hits, query, { tenantId }));
   return new Elysia().get('/vector/search', async ({ query, request, set }) => {
     if (!query.q) { set.status = 400; return { error: 'Missing query parameter: q' }; }
     const q = sanitize(query.q);
@@ -175,7 +183,7 @@ export function createVectorSearchEndpoint(deps: VectorSearchDeps = {}) {
       const filtered = filterAsOf(toHits(raw, collection), asOfDb, asOf.value)
         .filter((hit) => matchesMetadata(hit, metadata))
         .filter((hit) => withinDateRange(hit, from, to));
-      const boosted = applyVectorEntityBoost(asOfDb, filtered, q, { tenantId: currentTenantId() });
+      const boosted = boostResults(asOfDb, filtered, q, currentTenantId());
       const sorted = sortHits(boosted, sort.field, sort.order);
       const results = sorted.slice(offset, offset + limit);
       attachSupersedeStatus(asOfDb, results as unknown as Array<Record<string, unknown>>);

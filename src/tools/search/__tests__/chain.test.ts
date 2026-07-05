@@ -50,7 +50,7 @@ function makeCtx(queryByIdCalls: string[]): ToolContext {
       queryByIdCalls.push(id);
       expect(limit).toBe(3);
       if (id === 'seed') return vectorResult(['seed', 'side', 'next'], [0, 0.2, 0.25]);
-      if (id === 'next') return vectorResult(['seed', 'late'], [0.1, 0.9]);
+      if (id === 'next') return vectorResult(['seed', 'late'], [0.1, 1.5]);
       return vectorResult([], []);
     },
   };

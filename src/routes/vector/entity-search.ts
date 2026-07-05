@@ -2,6 +2,7 @@ import { Elysia, t } from 'elysia';
 import { currentTenantId } from '../../middleware/tenant.ts';
 import { entityCollectionName } from '../../vector/entities.ts';
 import { createVectorStoreForModel, getEmbeddingModels, type EmbeddingModelConfig } from '../../vector/factory.ts';
+import { cosineDistanceToSimilarity } from '../../vector/scoring.ts';
 import type { VectorQueryResult, VectorStoreAdapter } from '../../vector/types.ts';
 
 type EntityStore = Pick<VectorStoreAdapter, 'connect' | 'ensureCollection' | 'query'> & Partial<Pick<VectorStoreAdapter, 'close'>>;
@@ -43,13 +44,14 @@ function metadataAt(result: VectorQueryResult, index: number): Record<string, un
 function toHits(result: VectorQueryResult) {
   return result.ids.map((id, index) => {
     const metadata = metadataAt(result, index);
+    const distance = Number(result.distances?.[index] ?? 0);
     return {
       id,
       entity: String(metadata.entity ?? result.documents?.[index] ?? ''),
       sourceDocId: String(metadata.source_doc_id ?? ''),
       tenantId: String(metadata.tenant_id ?? ''),
-      score: 1 / (1 + Number(result.distances?.[index] ?? 0) / 100),
-      distance: Number(result.distances?.[index] ?? 0),
+      score: cosineDistanceToSimilarity(distance),
+      distance,
       metadata,
     };
   });

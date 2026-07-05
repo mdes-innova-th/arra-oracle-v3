@@ -117,7 +117,7 @@ describe('sleep-time consolidation worker', () => {
       const queued = listQueuedConsolidationPlans('tenant-a');
 
       expect(result).toMatchObject({ enabled: true, scanned: 2, planned: 1, suggestionsEmitted: 1, deleted: 0 });
-      expect(queued[0]).toMatchObject({ oldId: 'old-doc', newId: 'new-doc', tenantId: 'tenant-a', cosine: 0.98 });
+      expect(queued[0]).toMatchObject({ oldId: 'old-doc', newId: 'new-doc', tenantId: 'tenant-a', cosine: 0.99 });
       expect(queued[0].reason).toContain('sleep-time vector duplicate');
       expect(supersededBy(conn, 'old-doc')).toBeNull();
       expect(sleepConsolidationStatus({ ORACLE_CONSOLIDATION_WORKER: '1' }).suggestionsEmitted).toBeGreaterThanOrEqual(1);
@@ -132,7 +132,7 @@ describe('sleep-time consolidation worker', () => {
 
     try {
       const result = await runSleepConsolidationSweep(conn.sqlite, {
-        env: { ORACLE_CONSOLIDATION_WORKER: '1', ORACLE_CONSOLIDATION_SIMILARITY_THRESHOLD: '0.99' },
+        env: { ORACLE_CONSOLIDATION_WORKER: '1', ORACLE_CONSOLIDATION_SIMILARITY_THRESHOLD: '0.995' },
         now, models, connect: connectWith(0.02),
       });
 

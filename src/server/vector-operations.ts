@@ -9,14 +9,10 @@ import {
 } from '../vector/factory.ts';
 import { localNativeVectorDisabledReason, localVectorIndexMissingReason } from '../vector/cpu-capabilities.ts';
 import { selectVectorSearchModelKeys } from '../vector/model-selection.ts';
+import { cosineDistanceToSimilarity } from '../vector/scoring.ts';
 import type { VectorStoreAdapter } from '../vector/types.ts';
 import type { SearchResult } from './types.ts';
 import type { VectorIndexModelInfo, VectorOperations, VectorSearchInput } from './vector-operation-types.ts';
-
-function cosineDistanceToSimilarity(distance: number): number {
-  if (!Number.isFinite(distance)) return 0;
-  return Math.max(0, Math.min(1, 1 - distance / 2));
-}
 
 function modelKeys(model?: string): Array<string | undefined> {
   return selectVectorSearchModelKeys(model, getEmbeddingModels());

@@ -1,5 +1,6 @@
 import type { Database } from 'bun:sqlite';
 import { ensureVectorStoreConnected, getEmbeddingModels, type EmbeddingModelConfig } from '../vector/factory.ts';
+import { cosineDistanceToSimilarity } from '../vector/scoring.ts';
 import type { VectorQueryResult, VectorStoreAdapter } from '../vector/types.ts';
 import { memoryConfidence } from '../routes/memory/confidence.ts';
 import type { MemoryRecord } from '../routes/memory/store.ts';
@@ -207,9 +208,9 @@ function confidence(doc: RawDoc, now: number): number {
 }
 
 function similarityFromDistance(value: unknown): number {
-  const distance = Number(value ?? 1);
+  const distance = Number(value);
   if (!Number.isFinite(distance) || distance < 0) return 0;
-  return round(distance <= 1 ? 1 - distance : 1 / (1 + distance));
+  return round(cosineDistanceToSimilarity(distance));
 }
 
 function finish(enabled: boolean, started: number, plans: ConsolidationPlan[], scanned: number, emitted = 0, llm?: LlmConsolidationPassResult): SleepConsolidationResult {

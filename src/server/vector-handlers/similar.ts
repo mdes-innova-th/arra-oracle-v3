@@ -2,6 +2,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { db, oracleDocuments } from '../../db/index.ts';
 import { currentTenantId } from '../../middleware/tenant.ts';
 import { EMBEDDING_MODELS, ensureVectorStoreConnected } from '../../vector/factory.ts';
+import { cosineDistanceToSimilarity } from '../../vector/scoring.ts';
 import type { VectorStoreAdapter } from '../../vector/types.ts';
 import type { SearchResult } from '../types.ts';
 
@@ -53,7 +54,7 @@ export async function handleSimilar(
         concepts: doc?.concepts ? JSON.parse(doc.concepts) : [],
         project: doc?.project,
         source: 'vector' as const,
-        score: Math.max(0, 1 - distance / 2),
+        score: cosineDistanceToSimilarity(distance),
       }];
     });
     return { results, docId };
