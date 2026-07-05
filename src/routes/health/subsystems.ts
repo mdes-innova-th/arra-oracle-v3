@@ -2,12 +2,13 @@ import { DB_PATH } from '../../config.ts';
 import { sqlite } from '../../db/index.ts';
 import { resolveEmbeddingProviderSelection, type EmbeddingProviderSelection } from '../../vector/embedder-config.ts';
 import { getDetectedEmbeddingProviders, type DetectedEmbeddingProvider } from '../../vector/provider-detection.ts';
+import { readEntityCoverageStats, type EntityCoverageStats } from '../../search/entity-coverage.ts';
 import type { VectorBackendHealth } from '../../vector/health.ts';
 import type { VectorRuntimeStatus } from '../../vector/runtime-status.ts';
 import type { VectorServerHealth } from './vector-server.ts';
 
 type DbStatus = { status: 'connected' } | { status: 'error'; error: string };
-type CanonicalSubsystemName = 'backend' | 'database' | 'fts' | 'vector' | 'embedder' | 'mcp' | 'plugins';
+type CanonicalSubsystemName = 'backend' | 'database' | 'fts' | 'vector' | 'embedder' | 'entities' | 'mcp' | 'plugins';
 export type HealthStatusEnum = 'healthy' | 'starting' | 'degraded' | 'down';
 export type EmbeddingProviderDetection = { checkedAt?: string; providers: DetectedEmbeddingProvider[] };
 export type EmbeddingProviderProbe = () => Promise<EmbeddingProviderDetection>;
@@ -41,6 +42,7 @@ export async function buildHealthSubsystems(input: {
   uptimeSeconds: number;
   embeddingProviders?: EmbeddingProviderProbe;
   embeddingProviderSelection?: EmbeddingProviderSelection;
+  entityCoverage?: EntityCoverageStats;
 }): Promise<HealthSubsystems> {
   return withAliases({
     backend: backendSubsystem(input.uptimeSeconds),
@@ -48,6 +50,7 @@ export async function buildHealthSubsystems(input: {
     fts: ftsSubsystem(input.dbStatus),
     vector: vectorSubsystem(input.vector, input.vectorServer, input.vectorRuntime),
     embedder: await embedderSubsystem(input.embeddingProviders, input.vector, input.embeddingProviderSelection),
+    entities: entityCoverageSubsystem(input.entityCoverage ?? readEntityCoverageStats()),
     mcp: mcpSubsystem(input.toolCount),
     plugins: pluginSubsystem(input.pluginStatus, input.pluginCount),
   });
@@ -58,7 +61,7 @@ export function drainingSubsystems(): HealthSubsystems {
   return withAliases({
     backend: item('backend reachable'), database: item('database writable'),
     fts: item('FTS healthy'), vector: item('vector backend'),
-    embedder: item('embedder reachable'), mcp: item('MCP launchable'),
+    embedder: item('embedder reachable'), entities: item('entity sidecar coverage'), mcp: item('MCP launchable'),
     plugins: item('plugins loaded'),
   });
 }
@@ -166,6 +169,15 @@ function mcpSubsystem(toolCount: number): HealthSubsystem {
   return toolCount > 0
     ? healthy('MCP launchable', `${toolCount} MCP tool(s) registered`, { toolCount })
     : down('MCP launchable', 'no MCP tools registered', { toolCount });
+}
+
+function entityCoverageSubsystem(stats: EntityCoverageStats): HealthSubsystem {
+  if (stats.error) return degraded('entity sidecar coverage', `entity coverage unavailable: ${stats.error}`, { ...stats });
+  const percent = Number((stats.ratio * 100).toFixed(1));
+  const detail = stats.docsIndexed === 0
+    ? 'entity sidecar coverage ready; no indexed docs yet'
+    : `entity links cover ${stats.docsWithEntities}/${stats.docsIndexed} indexed docs (${percent}%)`;
+  return healthy('entity sidecar coverage', detail, { ...stats, percent });
 }
 
 function pluginSubsystem(status: 'ok' | 'degraded', count: number): HealthSubsystem {
