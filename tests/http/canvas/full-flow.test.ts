@@ -101,10 +101,10 @@ describe('canvas.buildwithoracle.com full integration flow', () => {
     expect(registry.body.plugins.find((plugin: { id: string }) => plugin.id === 'wave').path).toBe('/canvas');
   });
 
-  test('worker config keeps canvas custom domain running first', () => {
+  test('worker config keeps canvas custom domain deployable', () => {
     const config = readFileSync('workers/canvas/wrangler.toml', 'utf8');
     expect(config).toContain('canvas.buildwithoracle.com');
     expect(config).toContain('custom_domain = true');
-    expect(config).toContain('run_worker_first = true');
+    expect(config).not.toContain('run_worker_first');
   });
 });

@@ -34,6 +34,10 @@ function file(path: string): string {
   return readFileSync(path, 'utf8');
 }
 
+function stripAnsi(input: string): string {
+  return input.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '');
+}
+
 describe('Oracle Studio frontend Workers Static Assets build', () => {
   let buildOutput = '';
 
@@ -46,7 +50,7 @@ describe('Oracle Studio frontend Workers Static Assets build', () => {
     expect(pkg.scripts?.build).toBe('tsc --noEmit && vite build');
 
     expect(buildOutput).toContain('vite v');
-    expect(buildOutput).toContain('dist/index.html');
+    expect(stripAnsi(buildOutput)).toContain('dist/index.html');
     expect(existsSync(DIST_DIR)).toBe(true);
   });
 
