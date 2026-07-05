@@ -10,7 +10,7 @@ import { parseMemoryLimit } from './model.ts';
 type DocPreview = { id: string; title: string; sourceFile: string; type: string; content: string };
 type Suggestion = {
   id: string; oldId: string; newId: string; tenantId: string; confidence: number; score: number;
-  reason: string; original: DocPreview; suggested: DocPreview;
+  reason: string; model?: string; original: DocPreview; suggested: DocPreview;
   metrics: { cosine: number; ftsOverlap: number; oldConfidence: number; newConfidence: number };
 };
 type DocRow = { id: string; type: string; sourceFile: string; content: string | null };
@@ -98,10 +98,11 @@ function suggestionFromPlan(plan: ConsolidationPlan, docs: Map<string, DocPrevie
   const original = docs.get(plan.oldId) ?? fallbackDoc(plan.oldId);
   const suggested = docs.get(plan.newId) ?? fallbackDoc(plan.newId);
   const confidence = round((plan.cosine * 0.6) + (plan.ftsOverlap * 0.4));
+  const model = modelFromPlan(plan);
   return {
     id: suggestionId(plan.oldId, plan.newId), oldId: plan.oldId, newId: plan.newId,
     tenantId: plan.tenantId, confidence, score: confidence, reason: plan.reason,
-    original, suggested,
+    ...(model ? { model } : {}), original, suggested,
     metrics: {
       cosine: plan.cosine, ftsOverlap: plan.ftsOverlap,
       oldConfidence: plan.oldConfidence, newConfidence: plan.newConfidence,
@@ -209,6 +210,7 @@ function preview(value: string): string {
 }
 
 function suggestionId(oldId: string, newId: string): string { return `${oldId}->${newId}`; }
+function modelFromPlan(plan: ConsolidationPlan): string | undefined { return (plan as Record<string, unknown>).model as string | undefined ?? plan.reason.match(/model=([^,)]+)/)?.[1]; }
 function round(value: number): number { return Number(value.toFixed(4)); }
 function safeDecode(value: string): string { try { return decodeURIComponent(value); } catch { return value; } }
 function idsFromSuggestionId(id: string): [string, string] | null {

@@ -49,12 +49,18 @@ function addPair(conn: Connection) {
 function connectWith(distance: number) {
   return async () => ({
     queryById: async (id: string) => ({
-      ids: id === 'old-doc' ? ['new-doc'] : id === 'new-doc' ? ['old-doc'] : [],
+      ids: partnerId(id) ? [partnerId(id)!] : [],
       documents: [content],
       distances: [distance],
       metadatas: [{}],
     }),
   });
+}
+
+function partnerId(id: string): string | undefined {
+  if (id.startsWith('old')) return id.replace(/^old/, 'new');
+  if (id.startsWith('new')) return id.replace(/^new/, 'old');
+  return undefined;
 }
 
 function supersededBy(conn: Connection, id: string) {
@@ -78,15 +84,20 @@ describe('sleep-time consolidation worker', () => {
     const conn = connection('disabled');
     addPair(conn);
     let called = false;
+    let llmCalled = false;
 
     try {
       const worker = createSleepConsolidationWorker(conn.sqlite, { env: {}, connect: async () => { called = true; throw new Error('disabled'); } });
       worker.start();
-      const result = await runSleepConsolidationSweep(conn.sqlite, { env: {}, models, connect: async () => { called = true; throw new Error('disabled'); } });
+      const result = await runSleepConsolidationSweep(conn.sqlite, {
+        env: {}, models, llmClient: async () => { llmCalled = true; return {}; },
+        connect: async () => { called = true; throw new Error('disabled'); },
+      });
 
       expect(worker.isRunning()).toBe(false);
       expect(result).toMatchObject({ enabled: false, scanned: 0, planned: 0, suggestionsEmitted: 0, deleted: 0 });
       expect(called).toBe(false);
+      expect(llmCalled).toBe(false);
       expect(listQueuedConsolidationPlans('tenant-a')).toEqual([]);
       expect(supersededBy(conn, 'old-doc')).toBeNull();
     } finally {
@@ -128,6 +139,81 @@ describe('sleep-time consolidation worker', () => {
       expect(result).toMatchObject({ enabled: true, scanned: 2, planned: 0, suggestionsEmitted: 0 });
       expect(listQueuedConsolidationPlans('tenant-a')).toEqual([]);
       expect(supersededBy(conn, 'old-doc')).toBeNull();
+    } finally {
+      conn.storage.close();
+    }
+  });
+
+  test('queues an opt-in LLM SUPERSEDE suggestion without mutating docs', async () => {
+    const conn = connection('llm-suggest');
+    addPair(conn);
+
+    try {
+      const result = await runSleepConsolidationSweep(conn.sqlite, {
+        env: { ORACLE_CONSOLIDATION_LLM: '1', ORACLE_CONSOLIDATION_SIMILARITY_THRESHOLD: '0.95' },
+        now, models, connect: connectWith(0.2),
+        llmClient: async () => ({
+          action: 'SUPERSEDE',
+          oldId: 'old-doc',
+          newId: 'new-doc',
+          reason: 'new-doc corrects the older consolidation note',
+          model: 'mock-llm',
+        }),
+      });
+      const queued = listQueuedConsolidationPlans('tenant-a');
+
+      expect(result).toMatchObject({ enabled: true, scanned: 2, planned: 1, suggestionsEmitted: 1, deleted: 0 });
+      expect(result.llm).toMatchObject({ enabled: true, pairs: 1, planned: 1, suggestionsEmitted: 1 });
+      expect(queued[0]).toMatchObject({ oldId: 'old-doc', newId: 'new-doc', source: 'sleep-time-llm', model: 'mock-llm' });
+      expect(queued[0].reason).toContain('new-doc corrects');
+      expect(supersededBy(conn, 'old-doc')).toBeNull();
+    } finally {
+      conn.storage.close();
+    }
+  });
+
+  test('LLM NOOP decisions do not enqueue suggestions', async () => {
+    const conn = connection('llm-noop');
+    addPair(conn);
+
+    try {
+      const result = await runSleepConsolidationSweep(conn.sqlite, {
+        env: { ORACLE_CONSOLIDATION_LLM: '1' },
+        now, models, connect: connectWith(0.2),
+        llmClient: async () => ({ action: 'NOOP', reason: 'related but not superseding' }),
+      });
+
+      expect(result.llm).toMatchObject({ enabled: true, pairs: 1, planned: 0, suggestionsEmitted: 0 });
+      expect(listQueuedConsolidationPlans('tenant-a')).toEqual([]);
+      expect(supersededBy(conn, 'old-doc')).toBeNull();
+    } finally {
+      conn.storage.close();
+    }
+  });
+
+  test('LLM pass respects the per-sweep suggestion cap', async () => {
+    const conn = connection('llm-cap');
+    [['old-a', 'new-a'], ['old-b', 'new-b'], ['old-c', 'new-c']]
+      .forEach(([oldId, newId], index) => {
+        addDoc(conn, oldId, now - 86_400_000 - index);
+        addDoc(conn, newId, now - index);
+      });
+    let calls = 0;
+
+    try {
+      const result = await runSleepConsolidationSweep(conn.sqlite, {
+        env: { ORACLE_CONSOLIDATION_LLM: '1', ORACLE_CONSOLIDATION_LLM_CAP: '1' },
+        now, models, connect: connectWith(0.2),
+        llmClient: async (prompt) => {
+          calls += 1;
+          const ids = prompt.sources.map((source) => source.id);
+          return { action: 'SUPERSEDE', oldId: ids.find((id) => id.startsWith('old')), newId: ids.find((id) => id.startsWith('new')), reason: 'capped mock', model: 'mock-llm' };
+        },
+      });
+
+      expect(calls).toBe(1);
+      expect(result.llm).toMatchObject({ enabled: true, pairs: 1, planned: 1, suggestionsEmitted: 1 });
+      expect(listQueuedConsolidationPlans('tenant-a')).toHaveLength(1);
     } finally {
       conn.storage.close();
     }
