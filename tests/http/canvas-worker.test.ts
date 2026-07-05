@@ -54,10 +54,10 @@ describe('canvas subdomain worker app', () => {
     expect(missing.status).toBe(404);
   });
 
-  test('wrangler custom domain runs worker first', () => {
+  test('wrangler custom domain uses a valid route shape', () => {
     const config = readFileSync('workers/canvas/wrangler.toml', 'utf8');
     expect(config).toContain('canvas.buildwithoracle.com');
     expect(config).toContain('custom_domain = true');
-    expect(config).toContain('run_worker_first = true');
+    expect(config).not.toContain('run_worker_first');
   });
 });
