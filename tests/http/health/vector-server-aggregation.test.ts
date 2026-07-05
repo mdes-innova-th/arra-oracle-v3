@@ -7,6 +7,8 @@ function baseOptions(vectorServerHealth: () => Promise<any>) {
     pluginCount: 0,
     uptimeSeconds: () => 1,
     dbPing: () => ({ status: 'connected' as const }),
+    vectorRuntime: () => ({ vectorMode: 'embedded' as const }),
+    embeddingProviderSelection: { provider: 'none' as const, source: 'env' as const, explicit: true },
     vectorHealth: async () => ({ status: 'ok' as const, engines: [], checked_at: '2026-06-17T00:00:00.000Z' }),
     vectorServerHealth,
   };

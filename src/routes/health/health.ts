@@ -4,14 +4,14 @@ import { MCP_SERVER_NAME } from '../../const.ts';
 import { sqlite } from '../../db/index.ts';
 import { scanPlugins } from '../plugins/model.ts';
 import { readVectorBackendHealth } from '../../vector/health.ts';
-import { getVectorRuntimeStatus } from '../../vector/runtime-status.ts';
+import { getVectorRuntimeStatus, type VectorRuntimeStatus } from '../../vector/runtime-status.ts';
 import { readVectorServerHealth, type VectorServerHealth } from './vector-server.ts';
 import { memoryConfidenceRerankConfig } from '../memory/rerank-config.ts';
 import { mcpTools } from '../../tools/mcp-manifest.ts';
 import type { UnifiedPluginStatus } from '../../plugins/unified-loader.ts';
 import { sandboxLabel } from '../../runtime/sandbox-label.ts';
 import { healthRollupStatus } from './rollup.ts';
-import { buildHealthSubsystems, drainingSubsystems, rollupHealthStatus, type EmbeddingProviderProbe } from './subsystems.ts';
+import { buildHealthSubsystems, drainingSubsystems, rollupHealthStatus, type EmbeddingProviderProbe, type EmbeddingProviderSelection } from './subsystems.ts';
 import { sleepConsolidationStatus } from '../../workers/sleep-consolidation.ts';
 import pkg from '../../../package.json' with { type: 'json' };
 
@@ -38,6 +38,8 @@ export interface HealthEndpointOptions {
   vectorServerHealth?: () => Promise<VectorServerHealth>;
   pluginStatuses?: () => UnifiedPluginStatus[] | Promise<UnifiedPluginStatus[]>;
   embeddingProviders?: EmbeddingProviderProbe;
+  embeddingProviderSelection?: EmbeddingProviderSelection;
+  vectorRuntime?: () => VectorRuntimeStatus;
   dbPing?: DbPing;
   diskPath?: string;
   diskUsage?: () => DiskHealth;
@@ -115,14 +117,15 @@ export function createHealthEndpoint(options: HealthEndpointOptions = {}) {
     const pluginCount = options.pluginCount ?? (pluginItems.length || installedPluginCount());
     const pluginStatus = pluginItems.some((plugin) => plugin.status === 'degraded') ? 'degraded' : 'ok';
     const toolCount = mcpTools.length + (options.pluginMcpToolCount ?? 0);
-    const vectorRuntime = options.vectorHealth
+    const vectorRuntime = options.vectorRuntime?.() ?? (options.vectorHealth
       ? { vectorMode: 'embedded' as const }
-      : getVectorRuntimeStatus();
+      : getVectorRuntimeStatus());
     const serviceUptime = Math.round(uptimeSeconds * 1000) / 1000;
     const vectorIsAvailable = vectorAvailable(vectorRuntime, vector, vectorServer);
     const subsystems = await buildHealthSubsystems({
       dbStatus, vector, vectorServer, vectorRuntime, pluginStatus, pluginCount,
       toolCount, uptimeSeconds: serviceUptime, embeddingProviders: options.embeddingProviders,
+      embeddingProviderSelection: options.embeddingProviderSelection,
     });
     const healthStatus = rollupHealthStatus(subsystems);
 

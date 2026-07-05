@@ -29,6 +29,8 @@ test('GET /api/health exposes shared state and db/plugin subsystem aliases', asy
   const app = createHealthRoutes({
     pluginCount: 1,
     uptimeSeconds: () => 2,
+    vectorRuntime: embeddedRuntime,
+    embeddingProviderSelection: ollamaSelection,
     vectorHealth: async () => ({ status: 'ok', engines: [{ key: 'bge', model: 'bge', collection: 'docs', ok: true, count: 1 }], checked_at: 'now' }),
     vectorServerHealth: async () => ({ configured: false, status: 'unconfigured' }),
     embeddingProviders: async () => ({ checkedAt: 'now', providers: [{ type: 'ollama', available: true, configured: true, source: 'probe', models: ['bge'], capabilities: ['embed'] }] }),
@@ -65,3 +67,6 @@ test('GET /api/health maps draining to down with subsystem detail', async () => 
   expect(body.subsystems.db).toMatchObject({ status: 'down', label: 'database writable' });
   expect(body.subsystems.plugin).toMatchObject({ status: 'down', label: 'plugins loaded' });
 });
+
+const embeddedRuntime = () => ({ vectorMode: 'embedded' as const });
+const ollamaSelection = { provider: 'ollama' as const, source: 'env' as const, explicit: true };

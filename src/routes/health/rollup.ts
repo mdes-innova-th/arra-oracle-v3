@@ -22,9 +22,9 @@ function vectorRollupOk(
   vectorServer: VectorServerStatus,
   runtime: VectorRuntimeStatus,
 ): boolean {
-  if (runtime.vectorMode === 'disabled') return true;
   if (runtime.vectorMode === 'proxied' || vectorServer.configured) {
     return vectorServer.status === 'ok';
   }
+  if (runtime.vectorMode === 'disabled') return true;
   return vector.status === 'ok';
 }
