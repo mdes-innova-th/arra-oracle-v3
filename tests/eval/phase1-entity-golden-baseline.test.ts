@@ -82,11 +82,11 @@ describe('Phase 1 entity golden eval baseline', () => {
     }
   });
 
-  test('acronym alias is boosted in /api/search and fanout but not yet in /api/ask', async () => {
+  test('acronym alias is boosted in /api/search, /api/ask, and fanout', async () => {
     const item = cases.alias;
     const q = `${item.queryEntity} ${item.anchor}`;
     expect(ids(await search(q))).toEqual([item.linked, item.plain]);
-    expect((await askJson(q)).citations.map((hit) => hit.id)).toEqual([item.plain, item.linked]);
+    expect((await askJson(q)).citations.map((hit) => hit.id)).toEqual([item.linked, item.plain]);
     expect(ids(await fanout(q))).toEqual([item.linked, item.plain]);
   });
 
