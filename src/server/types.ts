@@ -21,6 +21,11 @@ export interface SearchResult {
   superseded_by?: string;
   superseded_at?: string | null;
   superseded_reason?: string | null;
+  superseded?: {
+    by: string;
+    at: string | null;
+    reason: string | null;
+  } | null;
   valid_time?: string | null;
   valid_until?: string | null;
 }
@@ -31,6 +36,8 @@ export interface SearchResponse {
   offset: number;
   limit: number;
   query?: string;
+  warning?: string;
+  warnings?: string[];
 }
 
 export interface StatsResponse {

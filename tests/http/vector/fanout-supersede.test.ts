@@ -60,7 +60,7 @@ afterAll(() => {
 
 test('GET /api/v1/vector/fanout includes supersede status on hits', async () => {
   const res = await fetcher(new Request('http://local/api/v1/vector/fanout?q=legacy&cache=false'));
-  const body = await res.json() as { results: Array<Record<string, unknown>> };
+  const body = await res.json() as { results: Array<Record<string, unknown>>; warnings?: string[] };
 
   expect(res.status).toBe(200);
   expect(body.results[0]).toMatchObject({
@@ -68,5 +68,11 @@ test('GET /api/v1/vector/fanout includes supersede status on hits', async () => 
     superseded_by: 'fanout-new-doc',
     superseded_at: new Date(supersededAt).toISOString(),
     superseded_reason: 'fanout replacement',
+    superseded: {
+      by: 'fanout-new-doc',
+      at: new Date(supersededAt).toISOString(),
+      reason: 'fanout replacement',
+    },
   });
+  expect(body.warnings).toEqual(['result[1] superseded by fanout-new-doc: fanout replacement']);
 });

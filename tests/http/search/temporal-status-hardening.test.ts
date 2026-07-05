@@ -38,7 +38,19 @@ describe('search temporal/supersede status hardening', () => {
         superseded_by: 'new',
         superseded_at: '2026-06-17T00:00:00.000Z',
         superseded_reason: 'replacement',
+        superseded: { by: 'new', at: '2026-06-17T00:00:00.000Z', reason: 'replacement' },
       });
+    } finally {
+      sqlite.close();
+    }
+  });
+
+  test('attachSupersedeStatus sets null status for current results', () => {
+    const sqlite = memoryDb();
+    try {
+      const results: Array<Record<string, unknown>> = [{ id: 'current' }];
+      attachSupersedeStatus(sqlite, results, 'tenant-a');
+      expect(results[0]).toEqual({ id: 'current', superseded: null });
     } finally {
       sqlite.close();
     }

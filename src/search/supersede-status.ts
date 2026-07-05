@@ -15,6 +15,7 @@ type SupersedeRow = {
   supersededAt: number | string | null;
   supersededReason: string | null;
 };
+export type SupersedeStatus = { by: string; at: string | null; reason: string | null };
 
 function resultIds(results: SearchResultRecord[]): string[] {
   return [...new Set(results
@@ -26,6 +27,41 @@ function toDb(input: OracleDbInput): OracleDb {
   return 'prepare' in input ? drizzle(input, { schema }) : input;
 }
 
+function text(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function statusFor(by: unknown, at: unknown, reason: unknown): SupersedeStatus | null {
+  const target = text(by);
+  if (!target) return null;
+  return { by: target, at: isoTimestamp(at as number | string | null | undefined), reason: text(reason) };
+}
+
+export function normalizeSupersedeStatus(result: SearchResultRecord): SupersedeStatus | null {
+  const existing = result.superseded;
+  if (existing && typeof existing === 'object' && !Array.isArray(existing)) {
+    const record = existing as Record<string, unknown>;
+    const status = statusFor(record.by, record.at, record.reason);
+    if (status) return status;
+  }
+  return statusFor(result.superseded_by ?? result.supersededBy, result.superseded_at ?? result.supersededAt, result.superseded_reason ?? result.supersededReason);
+}
+
+function setSupersedeStatus(result: SearchResultRecord, status: SupersedeStatus | null): void {
+  result.superseded = status;
+  if (!status) return;
+  result.superseded_by = status.by;
+  result.superseded_at = status.at;
+  result.superseded_reason = status.reason;
+}
+
+export function supersedeWarnings(results: SearchResultRecord[], label = 'result'): string[] {
+  return results.flatMap((result, index) => {
+    const status = normalizeSupersedeStatus(result);
+    return status ? [`${label}[${index + 1}] superseded by ${status.by}${status.reason ? `: ${status.reason}` : ''}`] : [];
+  });
+}
+
 export function attachSupersedeStatus(
   dbInput: OracleDbInput,
   results: SearchResultRecord[],
@@ -33,6 +69,7 @@ export function attachSupersedeStatus(
 ): void {
   const db = toDb(dbInput);
   const ids = resultIds(results);
+  for (const result of results) setSupersedeStatus(result, normalizeSupersedeStatus(result));
   if (ids.length === 0) return;
 
   let rows: SupersedeRow[];
@@ -59,8 +96,6 @@ export function attachSupersedeStatus(
     if (typeof result.id !== 'string') continue;
     const supersede = byId.get(result.id);
     if (!supersede) continue;
-    result.superseded_by = supersede.supersededBy;
-    result.superseded_at = isoTimestamp(supersede.supersededAt);
-    result.superseded_reason = supersede.supersededReason;
+    setSupersedeStatus(result, statusFor(supersede.supersededBy, supersede.supersededAt, supersede.supersededReason));
   }
 }
