@@ -1,6 +1,6 @@
 import { DB_PATH } from '../../config.ts';
 import { sqlite } from '../../db/index.ts';
-import { resolveEmbeddingProviderType } from '../../vector/embedder-config.ts';
+import { resolveEmbeddingProviderSelection, type EmbeddingProviderSelection } from '../../vector/embedder-config.ts';
 import { getDetectedEmbeddingProviders, type DetectedEmbeddingProvider } from '../../vector/provider-detection.ts';
 import type { VectorBackendHealth } from '../../vector/health.ts';
 import type { VectorRuntimeStatus } from '../../vector/runtime-status.ts';
@@ -11,6 +11,7 @@ type CanonicalSubsystemName = 'backend' | 'database' | 'fts' | 'vector' | 'embed
 export type HealthStatusEnum = 'healthy' | 'starting' | 'degraded' | 'down';
 export type EmbeddingProviderDetection = { checkedAt?: string; providers: DetectedEmbeddingProvider[] };
 export type EmbeddingProviderProbe = () => Promise<EmbeddingProviderDetection>;
+export type { EmbeddingProviderSelection };
 
 export type HealthSubsystem = {
   status: HealthStatusEnum;
@@ -39,13 +40,14 @@ export async function buildHealthSubsystems(input: {
   toolCount: number;
   uptimeSeconds: number;
   embeddingProviders?: EmbeddingProviderProbe;
+  embeddingProviderSelection?: EmbeddingProviderSelection;
 }): Promise<HealthSubsystems> {
   return withAliases({
     backend: backendSubsystem(input.uptimeSeconds),
     database: databaseSubsystem(input.dbStatus),
     fts: ftsSubsystem(input.dbStatus),
     vector: vectorSubsystem(input.vector, input.vectorServer, input.vectorRuntime),
-    embedder: await embedderSubsystem(input.embeddingProviders),
+    embedder: await embedderSubsystem(input.embeddingProviders, input.vector, input.embeddingProviderSelection),
     mcp: mcpSubsystem(input.toolCount),
     plugins: pluginSubsystem(input.pluginStatus, input.pluginCount),
   });
@@ -118,23 +120,44 @@ function vectorSubsystem(vector: VectorBackendHealth, server: VectorServerHealth
     if (server.status === 'ok') return healthy('vector backend', `vector proxy reachable at ${server.url ?? runtime.vectorUrl ?? 'configured proxy'}`, { ...server });
     return down('vector backend', `configured vector proxy unreachable: ${server.error ?? server.status}`, { ...server });
   }
-  if (runtime.vectorMode === 'disabled') return degraded('vector backend', `degraded: FTS-only (${runtime.vectorDisabledReason ?? 'vector disabled'})`);
   if (vector.status === 'ok') return healthy('vector backend', `${vector.engines.length} vector collection(s) available`, { engines: vector.engines.length });
+  if (runtime.vectorMode === 'disabled') return degraded('vector backend', `degraded: FTS-only (${runtime.vectorDisabledReason ?? 'vector disabled'})`);
   if (vector.status === 'degraded') return { status: 'degraded', label: 'vector backend', critical: false, detail: 'some vector collections are unavailable; FTS fallback remains active', data: { engines: vector.engines.length } };
   return degraded('vector backend', `degraded: FTS-only (${vector.engines[0]?.error ?? 'no vector collections available'})`);
 }
 
-async function embedderSubsystem(read?: EmbeddingProviderProbe): Promise<HealthSubsystem> {
+async function embedderSubsystem(read?: EmbeddingProviderProbe, vector?: VectorBackendHealth, selectedByOptions?: EmbeddingProviderSelection): Promise<HealthSubsystem> {
   const probe = read ?? (() => getDetectedEmbeddingProviders(false, { timeoutMs: 750 }));
-  const selected = resolveEmbeddingProviderType();
-  if (selected === 'none') return degraded('embedder reachable', 'degraded: FTS-only (embedder disabled; ORACLE_EMBEDDER=none)');
+  const selection = selectedByOptions ?? resolveEmbeddingProviderSelection();
+  const selected = selection.provider;
+  if (selected === 'none') {
+    const vectorDocs = vectorDocCount(vector);
+    if (vectorDocs > 0) {
+      return degraded(
+        'embedder reachable',
+        `degraded: FTS-only (embedder disabled; ORACLE_EMBEDDER=none); drift warning: vector collections already contain ${vectorDocs} docs`,
+        { warning: 'embedder_disabled_with_vector_docs', vectorDocs },
+      );
+    }
+    return degraded('embedder reachable', 'degraded: FTS-only (embedder disabled; ORACLE_EMBEDDER=none)');
+  }
   const lookup = selected === 'local' ? 'ollama' : selected;
   try {
     const detection = await probe();
     const provider = detection.providers.find((item) => item.type === lookup);
     if (provider?.available) return healthy('embedder reachable', `${selected} available`, { provider: selected, models: provider.models });
+    if (!selection.explicit) {
+      return degraded(
+        'embedder reachable',
+        `auto-detected ${selected} unavailable: ${provider?.error ?? 'not configured'}; set ORACLE_EMBEDDER=none for intentional FTS-only`,
+        { provider: selected, source: selection.source, checkedAt: detection.checkedAt },
+      );
+    }
     return down('embedder reachable', `${selected} unavailable: ${provider?.error ?? 'not configured'}`, { provider: selected, checkedAt: detection.checkedAt });
   } catch (error) {
+    if (!selection.explicit) {
+      return degraded('embedder reachable', `auto-detected ${selected} probe failed: ${err(error)}`, { provider: selected, source: selection.source });
+    }
     return down('embedder reachable', `embedder probe failed: ${err(error)}`, { provider: selected });
   }
 }
@@ -151,6 +174,10 @@ function pluginSubsystem(status: 'ok' | 'degraded', count: number): HealthSubsys
     : { status: 'degraded', label: 'plugins loaded', critical: false, detail: `${count} plugin(s); at least one degraded`, data: { count } };
 }
 
+function vectorDocCount(vector?: VectorBackendHealth): number {
+  return (vector?.engines ?? []).reduce((sum, engine) => sum + Math.max(0, Number(engine.count ?? 0)), 0);
+}
+
 function count(table: string): number {
   return (sqlite.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number }).count;
 }
@@ -163,6 +190,6 @@ function down(label: string, detail: string, data?: Record<string, unknown>): He
   return { status: 'down', label, critical: true, detail, data };
 }
 
-function degraded(label: string, detail: string): HealthSubsystem {
-  return { status: 'degraded', label, critical: false, detail };
+function degraded(label: string, detail: string, data?: Record<string, unknown>): HealthSubsystem {
+  return { status: 'degraded', label, critical: false, detail, data };
 }

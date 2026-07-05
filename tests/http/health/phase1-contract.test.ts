@@ -20,6 +20,8 @@ test('GET /api/health keeps HTTP 200 and shaped health contract when checks thro
   try {
     const app = createHealthRoutes({
       uptimeSeconds: () => 31,
+      vectorRuntime: () => ({ vectorMode: 'embedded' as const }),
+      embeddingProviderSelection: { provider: 'ollama' as const, source: 'env' as const, explicit: true },
       dbPing: () => { throw new Error('sqlite busy'); },
       vectorHealth: async () => { throw new Error('vector offline'); },
       vectorServerHealth: async () => { throw new Error('proxy offline'); },
