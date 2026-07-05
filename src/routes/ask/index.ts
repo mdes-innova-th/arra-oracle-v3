@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia';
 import { sqlite } from '../../db/index.ts';
 import { currentTenantId } from '../../middleware/tenant.ts';
+import { augmentQueryWithAcronyms } from '../../search/acronyms.ts';
 import { filterResultsAsOf, parseAsOf } from '../../search/bitemporal.ts';
 import { rerankByEntityLinks } from '../../search/entity-ranking.ts';
 import { attachSupersedeStatus } from '../../search/supersede-status.ts';
@@ -64,9 +65,10 @@ export async function answerOracleAsk(body: AskInput, deps: AskDeps = {}): Promi
   if (!parsedModel.ok) return { status: 400, body: { error: parsedModel.error } };
   const asOf = parseAsOf(body.asOf);
   if (!asOf.ok) return { status: 400, body: { error: asOf.error } };
-  const tenantResult = handleTenantSearch(q, body.type ?? 'all', limit, 0, asOf.value);
+  const augmentedQ = augmentQueryWithAcronyms(q);
+  const tenantResult = handleTenantSearch(augmentedQ, body.type ?? 'all', limit, 0, asOf.value);
   const result = tenantResult
-    ?? await handleSearch(q, body.type ?? 'all', limit, 0, 'hybrid', body.project, body.cwd, parsedModel.value);
+    ?? await handleSearch(augmentedQ, body.type ?? 'all', limit, 0, 'hybrid', body.project, body.cwd, parsedModel.value);
   if (asOf.value && !tenantResult) {
     result.results = filterResultsAsOf(
       sqlite,
@@ -75,7 +77,7 @@ export async function answerOracleAsk(body: AskInput, deps: AskDeps = {}): Promi
     ) as unknown as typeof result.results;
     result.total = result.results.length;
   }
-  result.results = rerankByEntityLinks(sqlite, result.results, q, currentTenantId()) as typeof result.results;
+  result.results = rerankByEntityLinks(sqlite, result.results, augmentedQ, currentTenantId()) as typeof result.results;
   attachSupersedeStatus(sqlite, result.results as unknown as Array<Record<string, unknown>>);
   const sources = sourcesFrom(rankAskResults(result.results), limit);
   const client = body.llm === false ? undefined : deps.client ?? envAskClient();
