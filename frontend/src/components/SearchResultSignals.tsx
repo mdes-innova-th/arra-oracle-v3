@@ -10,8 +10,11 @@ import {
   provenanceDescription,
   sourceDetails,
   sourceLabel,
+  supersedeDateLabel,
+  supersedeInfo,
   type ProvenanceSearchResult,
 } from './searchResultView';
+import { vectorResultsPath } from '../routePaths';
 
 const meterTone: Record<BadgeTone, MeterTone> = {
   neutral: 'accent',
@@ -29,7 +32,7 @@ export function SearchResultSignals({ result }: { result: ProvenanceSearchResult
   const heatText = percentLabel(heat) ?? '0%';
   const provenance = provenanceDescription(result);
   const details = sourceDetails(result);
-  const superseded = Boolean(result.superseded_by || result.superseded_at);
+  const superseded = supersedeInfo(result);
 
   return (
     <section aria-label="Memory provenance and confidence" className="mt-4 grid gap-3 rounded-xl border border-border bg-surface-muted p-3">
@@ -40,7 +43,15 @@ export function SearchResultSignals({ result }: { result: ProvenanceSearchResult
         <Badge tone={heat > 0.66 ? 'success' : heat > 0.33 ? 'warning' : 'accent'} ariaLabel={`Heat ${heatText}`}>
           heat {heatText}
         </Badge>
-        {superseded ? <Badge tone="warning">superseded</Badge> : null}
+        {superseded ? (
+          <a
+            className="focus-ring inline-flex max-w-full items-center rounded-full border border-warn-border bg-warn-bg/90 px-2.5 py-1 text-xs font-medium text-warn-text backdrop-blur-sm"
+            href={vectorResultsPath(superseded.by)}
+            title={superseded.reason ?? `Superseded by ${superseded.by}`}
+          >
+            <span className="truncate">superseded on {supersedeDateLabel(superseded.at)} → doc {superseded.by}</span>
+          </a>
+        ) : null}
       </div>
 
       <dl className="grid gap-2 text-xs text-text-muted sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
@@ -53,7 +64,7 @@ export function SearchResultSignals({ result }: { result: ProvenanceSearchResult
           <dd className="mt-1 text-text">{provenance || 'score-only result'}</dd>
         </div>
         {details.length ? <div className="sm:col-span-2"><dt className="sr-only">result details</dt><dd>{details.join(' · ')}</dd></div> : null}
-        {result.superseded_reason ? <div className="sm:col-span-2"><dt className="sr-only">supersede reason</dt><dd>{result.superseded_reason}</dd></div> : null}
+        {superseded?.reason ? <div className="sm:col-span-2"><dt className="sr-only">supersede reason</dt><dd>{superseded.reason}</dd></div> : null}
       </dl>
 
       <div className="grid gap-3 sm:grid-cols-2">

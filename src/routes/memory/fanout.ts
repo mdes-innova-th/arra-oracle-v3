@@ -1,4 +1,6 @@
 import { Elysia } from 'elysia';
+import { sqlite } from '../../db/index.ts';
+import { attachSupersedeStatus, supersedeWarnings } from '../../search/supersede-status.ts';
 import type { SearchResult } from '../../server/types.ts';
 import { ensureVectorStoreConnected, getEmbeddingModels, type EmbeddingModelConfig } from '../../vector/factory.ts';
 import type { VectorQueryResult, VectorStoreAdapter } from '../../vector/types.ts';
@@ -211,6 +213,8 @@ export function createMemoryFanoutEndpoint(deps: MemoryFanoutDeps = {}) {
       confidenceWeight: configuredConfidenceWeight,
       now: deps.now?.(),
     });
+    attachSupersedeStatus(sqlite, results as unknown as Array<Record<string, unknown>>);
+    const warnings = supersedeWarnings(results as unknown as Array<Record<string, unknown>>);
     scheduleMemoryReinforcement(results, deps.reinforce);
 
     return {
@@ -227,6 +231,7 @@ export function createMemoryFanoutEndpoint(deps: MemoryFanoutDeps = {}) {
         confidenceSource: rerankConfig.confidenceSource,
       },
       results,
+      ...(warnings.length ? { warnings } : {}),
       errors,
       cost: estimateFanoutCost(q, collections),
     };
