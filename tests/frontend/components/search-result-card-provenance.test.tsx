@@ -35,4 +35,21 @@ describe('SearchResultCard provenance signals', () => {
     expect(html).toContain('aria-valuenow="82"');
     expect(html).toContain('aria-valuenow="69"');
   });
+
+  test('renders superseded badge with replacement link', () => {
+    const html = htmlFor(
+      <SearchResultCard
+        result={{
+          id: 'legacy',
+          content: 'Legacy memory.',
+          source_file: 'vault/legacy.md',
+          superseded: { by: 'current-doc', at: '2026-06-16T10:00:00.000Z', reason: 'newer source' },
+        }}
+      />,
+    );
+
+    expect(html).toContain('superseded on 2026-06-16 → doc current-doc');
+    expect(html).toContain('href="/vector/results?q=current-doc"');
+    expect(html).toContain('newer source');
+  });
 });

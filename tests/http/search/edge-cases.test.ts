@@ -172,7 +172,7 @@ describe('search route edge cases', () => {
 
   test('GET /api/search surfaces supersede status inline with results', async () => {
     const res = await request(`/api/search?q=${supersedeTerm}&mode=fts`);
-    const body = await res.json() as { results: Array<Record<string, unknown>>; total: number };
+    const body = await res.json() as { results: Array<Record<string, unknown>>; total: number; warnings?: string[] };
 
     expect(res.status).toBe(200);
     expect(body.total).toBe(1);
@@ -181,7 +181,22 @@ describe('search route edge cases', () => {
       superseded_by: successorDocId,
       superseded_at: new Date(supersededAt).toISOString(),
       superseded_reason: 'newer source of truth',
+      superseded: {
+        by: successorDocId,
+        at: new Date(supersededAt).toISOString(),
+        reason: 'newer source of truth',
+      },
     });
+    expect(body.warnings).toContain(`result[1] superseded by ${successorDocId}: newer source of truth`);
+  });
+
+  test('GET /api/search marks non-superseded results with null status', async () => {
+    const res = await request(`/api/search?q=${term}&mode=fts`);
+    const body = await res.json() as { results: Array<Record<string, unknown>>; warnings?: string[] };
+
+    expect(res.status).toBe(200);
+    expect(body.results[0]).toMatchObject({ id: docId, superseded: null });
+    expect(body.warnings?.some((warning) => warning.includes('superseded by'))).toBe(false);
   });
 
   test('GET /api/list falls back on safe pagination for bad numbers', async () => {

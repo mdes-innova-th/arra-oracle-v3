@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia';
 import { sqlite } from '../../db/index.ts';
-import { attachSupersedeStatus } from '../../search/supersede-status.ts';
+import { attachSupersedeStatus, supersedeWarnings } from '../../search/supersede-status.ts';
 import { ensureVectorStoreConnected, getEmbeddingModels, type EmbeddingModelConfig } from '../../vector/factory.ts';
 import { queryFanout, type FanoutStrategy } from '../../vector/fanout-query.ts';
 import { loadVectorConfig } from '../../vector/config.ts';
@@ -38,7 +38,8 @@ function withSupersedeStatus(result: Record<string, unknown>): Record<string, un
   if (!Array.isArray(result.results)) return result;
   const results = result.results.map((item) => ({ ...(item as Record<string, unknown>) }));
   attachSupersedeStatus(sqlite, results);
-  return { ...result, results };
+  const warnings = supersedeWarnings(results);
+  return { ...result, results, ...(warnings.length ? { warnings } : {}) };
 }
 
 function requestedBackends(

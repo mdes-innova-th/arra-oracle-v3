@@ -4,6 +4,7 @@ import { sqlite } from '../../db/index.ts';
 import { currentTenantId } from '../../middleware/tenant.ts';
 import type { SearchResult } from '../../server/types.ts';
 import { filterResultsAsOf, parseAsOf } from '../../search/bitemporal.ts';
+import { attachSupersedeStatus, supersedeWarnings } from '../../search/supersede-status.ts';
 import { getEmbeddingModels, getVectorStoreByModel } from '../../vector/factory.ts';
 import type { VectorQueryResult, VectorStoreAdapter } from '../../vector/types.ts';
 import { asOfResponse } from '../search/asof.ts';
@@ -176,10 +177,13 @@ export function createVectorSearchEndpoint(deps: VectorSearchDeps = {}) {
         .filter((hit) => withinDateRange(hit, from, to));
       const boosted = applyVectorEntityBoost(asOfDb, filtered, q, { tenantId: currentTenantId() });
       const sorted = sortHits(boosted, sort.field, sort.order);
+      const results = sorted.slice(offset, offset + limit);
+      attachSupersedeStatus(asOfDb, results as unknown as Array<Record<string, unknown>>);
+      const warnings = supersedeWarnings(results as unknown as Array<Record<string, unknown>>);
       return {
-        results: sorted.slice(offset, offset + limit), total: sorted.length, offset, limit, query: q, mode: 'vector', collection,
+        results, total: sorted.length, offset, limit, query: q, mode: 'vector', collection,
         filters: { metadata, dateRange: { from: query.from ?? query.dateFrom, to: query.to ?? query.dateTo }, asOf: query.asOf },
-        sort, vectorAvailable: true, ...asOfResponse(asOf.value),
+        sort, vectorAvailable: true, ...(warnings.length ? { warnings } : {}), ...asOfResponse(asOf.value),
       };
     } catch (error) {
       set.status = 400;

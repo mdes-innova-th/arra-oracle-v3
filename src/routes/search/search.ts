@@ -9,7 +9,7 @@ import { augmentQueryWithAcronyms } from '../../search/acronyms.ts';
 import { filterResultsAsOf, parseAsOf } from '../../search/bitemporal.ts';
 import { compactSearchResults, parseSearchRetrievalMode } from '../../search/compact-summary.ts';
 import { rerankByEntityLinks } from '../../search/entity-ranking.ts';
-import { attachSupersedeStatus } from '../../search/supersede-status.ts';
+import { attachSupersedeStatus, supersedeWarnings } from '../../search/supersede-status.ts';
 import { handleSearch } from '../../server/handlers.ts';
 import { asOfResponse } from './asof.ts';
 import { SearchQuery } from './model.ts';
@@ -76,12 +76,16 @@ export const searchEndpoint = new Elysia().get(
       }
       result.results = rerankByEntityLinks(sqlite, result.results, augmentedQ, currentTenantId());
       attachSupersedeStatus(sqlite, result.results as unknown as Array<Record<string, unknown>>);
+      const warnings = [
+        ...(typeof result.warning === 'string' && result.warning.trim() ? [result.warning.trim()] : []),
+        ...supersedeWarnings(result.results as unknown as Array<Record<string, unknown>>),
+      ];
       const compact = retrieval.mode === 'compact-summary'
         ? compactSearchResults(result.results as unknown as Array<Record<string, unknown>>, sanitizedQ)
         : null;
       if (compact) result.results = compact.results as unknown as typeof result.results;
       const metadata = compact ? { metadata: { ...('metadata' in result ? result.metadata as object : {}), retrieval: compact.metadata } } : {};
-      return { ...result, ...metadata, query: sanitizedQ, ...asOfResponse(asOf.value) };
+      return { ...result, ...metadata, query: sanitizedQ, ...(warnings.length ? { warnings: [...new Set(warnings)] } : {}), ...asOfResponse(asOf.value) };
     } catch {
       set.status = 400;
       return { results: [], total: 0, query: sanitizedQ, error: 'Search failed' };

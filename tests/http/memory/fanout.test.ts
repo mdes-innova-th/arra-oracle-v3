@@ -215,12 +215,18 @@ test('GET /api/v1/memory/fanout preserves supersede metadata from vector hits', 
   }));
   const fetcher = createApiVersionedFetch((request) => app.handle(request));
   const response = await fetcher(new Request('http://local/api/v1/memory/fanout?q=legacy'));
-  const body = await json(response);
+  const body = await json(response) as { results: Array<Record<string, unknown>>; warnings?: string[] };
 
   expect(body.results[0]).toMatchObject({
     id: 'old-memory',
     superseded_by: 'new-memory',
     superseded_at: '2026-06-16T10:00:00.000Z',
     superseded_reason: 'newer source of truth',
+    superseded: {
+      by: 'new-memory',
+      at: '2026-06-16T10:00:00.000Z',
+      reason: 'newer source of truth',
+    },
   });
+  expect(body.warnings).toEqual(['result[1] superseded by new-memory: newer source of truth']);
 });

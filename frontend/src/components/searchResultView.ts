@@ -33,12 +33,15 @@ export type ProvenanceSearchResult = SearchResult & {
   superseded_by?: string | null;
   superseded_at?: string | null;
   superseded_reason?: string | null;
+  superseded?: { by?: string | null; at?: string | null; reason?: string | null } | null;
   valid_time?: string | null;
   valid_until?: string | null;
   tags?: string[];
   createdAt?: string;
   updatedAt?: string;
 };
+
+export type SupersedeBadgeInfo = { by: string; at: string | null; reason: string | null };
 
 export function titleFor(result: SearchResult): string {
   return result.title || result.source_file || result.id;
@@ -119,4 +122,20 @@ export function provenanceDescription(result: ProvenanceSearchResult): string {
   const freshness = percentLabel(result.confidence?.freshness ?? components?.freshness);
   const match = percentLabel(components?.match);
   return [provenance ? `provenance ${provenance}` : '', freshness ? `freshness ${freshness}` : '', match ? `match ${match}` : ''].filter(Boolean).join(' · ');
+}
+
+export function supersedeInfo(result: ProvenanceSearchResult): SupersedeBadgeInfo | null {
+  const by = result.superseded?.by ?? result.superseded_by;
+  if (!by) return null;
+  return {
+    by,
+    at: result.superseded?.at ?? result.superseded_at ?? null,
+    reason: result.superseded?.reason ?? result.superseded_reason ?? null,
+  };
+}
+
+export function supersedeDateLabel(value: string | null): string {
+  if (!value) return 'unknown date';
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString().slice(0, 10) : value.slice(0, 10);
 }
