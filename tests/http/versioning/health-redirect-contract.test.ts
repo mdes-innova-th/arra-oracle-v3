@@ -12,6 +12,8 @@ function createFetch() {
     .use(createApiVersionHeaderMiddleware())
     .use(createHealthRoutes({
       dbPing: () => ({ status: 'connected' }),
+      vectorRuntime: () => ({ vectorMode: 'embedded' as const }),
+      embeddingProviderSelection: { provider: 'none' as const, source: 'env' as const, explicit: true },
       vectorHealth: async () => ({ status: 'ok', engines: [], checked_at: '2026-06-17T00:00:00.000Z' }),
       diskUsage: () => ({
         status: 'ok',
@@ -26,7 +28,7 @@ function createFetch() {
   return createApiVersionedFetch((request) => app.handle(request));
 }
 
-test('only exact /api/health bypasses bare /api redirecting', async () => {
+test('health subtree bypasses bare /api redirecting', async () => {
   const fetcher = createFetch();
 
   const health = await fetcher(new Request('http://local/api/health?probe=1'));
@@ -35,12 +37,12 @@ test('only exact /api/health bypasses bare /api redirecting', async () => {
   expect(health.headers.get(API_VERSION_HEADER)).toBe('v1');
 
   const trailing = await fetcher(new Request('http://local/api/health/'));
-  expect(trailing.status).toBe(308);
-  expect(trailing.headers.get('location')).toBe('http://local/api/v1/health/');
+  expect(trailing.status).toBe(200);
+  expect(trailing.headers.get('location')).toBeNull();
 
   const deep = await fetcher(new Request('http://local/api/health/deep?probe=1'));
-  expect(deep.status).toBe(308);
-  expect(deep.headers.get('location')).toBe('http://local/api/v1/health/deep?probe=1');
+  expect(deep.status).toBe(200);
+  expect(deep.headers.get('location')).toBeNull();
 });
 
 test('versioned health children rewrite to the unversioned route internals', async () => {

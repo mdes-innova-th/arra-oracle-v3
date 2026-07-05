@@ -82,8 +82,9 @@ if (!fs.existsSync(ORACLE_DATA_DIR)) {
 //                      results with vectorAvailable: false. (Future: 'cache', 'fail'.)
 //   VECTOR_DB_URL    — target for vector-server.json proxy manifests such as
 //                      /api/vector-db → sidecar vector DB passthrough.
-//   ORACLE_EMBEDDER  — 'none' (default), 'local', or 'remote'. Remote uses
-//                      ORACLE_EMBEDDER_URL and falls back to FTS5 on failure.
+//   ORACLE_EMBEDDER  — unset auto-selects local Ollama when reachable.
+//                      Explicit 'none' disables embeddings for FTS5-only mode.
+//                      Remote uses ORACLE_EMBEDDER_URL and falls back to FTS5.
 export function isVectorServerEntrypoint(argv1: string | undefined): boolean {
   return /(^|[/\\])vector-server\.(ts|js|mjs)$/.test(argv1 || '');
 }

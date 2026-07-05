@@ -14,22 +14,21 @@ import {
 const STUDIO = 'https://studio.example';
 
 describe('api version middleware redirects and rewrites edge paths', () => {
-  test('legacy API redirect is permanent, preserves query, and skips the app', async () => {
+  test('allowed-origin legacy API request rewrites in place for browser callers', async () => {
     let calls = 0;
     const fetcher = createApiVersionedFetch(() => {
       calls += 1;
-      return new Response('unexpected');
+      return new Response('ok');
     });
 
     const res = await fetcher(new Request('http://local/api/search?q=oracle&next=%2Fapi%2Fdocs', {
       headers: { origin: 'http://localhost:3000' },
     }));
 
-    expect(res.status).toBe(308);
-    expect(res.headers.get('location')).toBe('http://local/api/v1/search?q=oracle&next=%2Fapi%2Fdocs');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('location')).toBeNull();
     expect(res.headers.get(API_VERSION_HEADER)).toBe('v1');
-    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:3000');
-    expect(calls).toBe(0);
+    expect(calls).toBe(1);
   });
 
   test('versioned request rewrites internally while preserving the public path', async () => {

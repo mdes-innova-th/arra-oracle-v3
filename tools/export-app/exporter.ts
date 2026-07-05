@@ -160,8 +160,10 @@ function openReadonlyConnection(dbPath = DB_PATH): { connection: DatabaseConnect
 }
 
 function selectRows(connection: DatabaseConnection, table: ExportTable): ExportRecord[] {
-  return (connection.db as any).select().from(table).all() as ExportRecord[];
+  try { return (connection.db as any).select().from(table).all() as ExportRecord[]; }
+  catch (error) { if (isMissingTableError(error)) return []; throw error; }
 }
+function isMissingTableError(error: unknown): boolean { return String(error instanceof Error ? error.message : error).toLowerCase().includes('no such table:'); }
 
 function reportProgress(progress: Progress, event: Omit<ExportProgressEvent, 'percent'>): void {
   const percent = Math.round((event.current / event.total) * 100);

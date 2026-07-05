@@ -27,8 +27,10 @@ function connectionFrom(deps: ExportStatsDeps): QueryConnection {
 }
 
 function selectRows(connection: QueryConnection, table: DumpTable): ExportRecord[] {
-  return (connection.db as any).select().from(table).all() as ExportRecord[];
+  try { return (connection.db as any).select().from(table).all() as ExportRecord[]; }
+  catch (error) { if (isMissingTableError(error)) return []; throw error; }
 }
+function isMissingTableError(error: unknown): boolean { return String(error instanceof Error ? error.message : error).toLowerCase().includes('no such table:'); }
 
 export function formatExportSize(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];

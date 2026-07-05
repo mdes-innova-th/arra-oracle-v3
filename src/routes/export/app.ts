@@ -65,10 +65,10 @@ function tableMap(): Map<string, DumpTable> {
 }
 
 function selectRows(connection: QueryConnection, table: DumpTable): ExportRecord[] {
-  const query = (connection.db as any).select().from(table);
-  const where = tenantWhereFor(table);
-  return (where ? query.where(where) : query).all() as ExportRecord[];
+  try { const query = (connection.db as any).select().from(table); const where = tenantWhereFor(table); return (where ? query.where(where) : query).all() as ExportRecord[]; }
+  catch (error) { if (isMissingTableError(error)) return []; throw error; }
 }
+function isMissingTableError(error: unknown): boolean { return String(error instanceof Error ? error.message : error).toLowerCase().includes('no such table:'); }
 
 function safeName(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]/g, '_');

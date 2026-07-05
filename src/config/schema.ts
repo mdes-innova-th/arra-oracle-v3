@@ -192,5 +192,5 @@ export const OPTIONAL_DEFAULTS = [
   { label: 'ORACLE_DATA_DIR', keys: ['ORACLE_DATA_DIR'], fallback: '~/.arra-oracle-v2' },
   { label: 'ORACLE_DB_PATH/DATABASE_URL', keys: ['ORACLE_DB_PATH', 'DATABASE_URL'], fallback: '<data-dir>/oracle.db' },
   { label: 'VECTOR_URL', keys: ['VECTOR_URL'], fallback: 'local vector adapter' },
-  { label: 'ORACLE_EMBEDDER/EMBEDDER_TYPE', keys: ['ORACLE_EMBEDDER', 'EMBEDDER_TYPE'], fallback: 'none/FTS5 fallback' },
+  { label: 'ORACLE_EMBEDDER/EMBEDDER_TYPE', keys: ['ORACLE_EMBEDDER', 'EMBEDDER_TYPE'], fallback: 'auto-detect ollama; explicit none disables' },
 ] as const;

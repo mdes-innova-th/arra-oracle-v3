@@ -84,7 +84,15 @@ function vectorHealth() {
   });
 }
 
+function useScratchRuntime() {
+  process.env.ORACLE_DATA_DIR = scratch;
+  process.env.ORACLE_DB_PATH = join(scratch, 'oracle.db');
+  process.env.ORACLE_EMBEDDER = 'none';
+  process.env.ORACLE_VECTOR_DB = 'sqlite-vec';
+}
+
 function auditApp() {
+  useScratchRuntime();
   const tasks: Promise<void>[] = [];
   const sqlite = indexerDb();
   const indexerAuditRoutes = new Elysia({ prefix: '/api' })
@@ -101,7 +109,13 @@ function auditApp() {
 
   const app = new Elysia()
     .use(new Elysia({ prefix: '/api' })
-      .use(createHealthEndpoint({ vectorHealth, vectorServerHealth: async () => ({ configured: false, status: 'ok' }), pluginStatuses: () => [] }))
+      .use(createHealthEndpoint({
+        vectorHealth,
+        vectorRuntime: () => ({ vectorMode: 'embedded' as const }),
+        embeddingProviderSelection: { provider: 'none' as const, source: 'env' as const, explicit: true },
+        vectorServerHealth: async () => ({ configured: false, status: 'ok' }),
+        pluginStatuses: () => [],
+      }))
       .use(createStatsEndpoint({ vectorStats: async () => ({ vector: { enabled: false, count: 0, collection: 'oracle_knowledge' }, vectors: [] }) })))
     .use(filesRouter)
     .use(createMenuRoutes([]))
@@ -114,6 +128,7 @@ function auditApp() {
 }
 
 function request(app: Elysia, endpoint: Endpoint) {
+  useScratchRuntime();
   const headers: Record<string, string> = { origin: 'http://localhost:3000' };
   const init: RequestInit = { method: endpoint.method, headers };
   if (endpoint.body !== undefined) {

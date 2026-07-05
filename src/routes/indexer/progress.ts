@@ -2,6 +2,8 @@ import { Elysia } from 'elysia';
 import { DB_PATH } from '../../config.ts';
 import { Database } from 'bun:sqlite';
 
+function currentDbPath(): string { return process.env.ORACLE_DB_PATH?.trim() || DB_PATH; }
+
 export const progressEndpoint = new Elysia().get('/indexer/progress', async ({ set }) => {
   set.headers['Content-Type'] = 'text/event-stream';
   set.headers['Cache-Control'] = 'no-cache';
@@ -12,7 +14,13 @@ export const progressEndpoint = new Elysia().get('/indexer/progress', async ({ s
   return new Response(
     new ReadableStream({
       async start(controller) {
-        const sqlite = new Database(DB_PATH, { readonly: true });
+        let sqlite: Database | undefined;
+        try { sqlite = new Database(currentDbPath(), { readonly: true }); }
+        catch (error) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ status: 'error', current: 0, total: 0, error: error instanceof Error ? error.message : String(error) })}\n\n`));
+          controller.close();
+          return;
+        }
         let done = false;
 
         while (!done) {
@@ -71,7 +79,7 @@ export const progressEndpoint = new Elysia().get('/indexer/progress', async ({ s
           }
         }
 
-        sqlite.close();
+        sqlite?.close();
         controller.close();
       },
     }),

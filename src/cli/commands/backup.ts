@@ -150,8 +150,10 @@ function columnDefinition(column: DumpColumn): string {
 }
 
 function selectRows(connection: DatabaseConnection, table: DumpTable): DumpRow[] {
-  return (connection.db as any).select().from(table).all() as DumpRow[];
+  try { return (connection.db as any).select().from(table).all() as DumpRow[]; }
+  catch (error) { if (isMissingTableError(error)) return []; throw error; }
 }
+function isMissingTableError(error: unknown): boolean { return String(error instanceof Error ? error.message : error).toLowerCase().includes('no such table:'); }
 
 function insertSql(tableName: string, columns: Array<[string, DumpColumn]>, row: DumpRow): string {
   const names = columns.map(([, column]) => quoteIdent(column.name)).join(', ');

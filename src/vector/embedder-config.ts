@@ -15,12 +15,27 @@ const VALID = new Set<EmbeddingProviderType>([
 export function resolveEmbeddingProviderType(
   configured?: EmbeddingProviderType,
 ): EmbeddingProviderType {
-  if (configured) return configured;
+  return resolveEmbeddingProviderSelection(configured).provider;
+}
+
+export type EmbeddingProviderSelection = {
+  provider: EmbeddingProviderType;
+  source: 'configured' | 'legacy-env' | 'env' | 'auto-default';
+  explicit: boolean;
+};
+
+export function resolveEmbeddingProviderSelection(
+  configured?: EmbeddingProviderType,
+): EmbeddingProviderSelection {
+  if (configured) return selection(normalizeProvider(configured), 'configured', true);
 
   const legacy = process.env.ORACLE_EMBEDDING_PROVIDER as EmbeddingProviderType | undefined;
-  if (legacy) return normalizeProvider(legacy);
+  if (legacy?.trim()) return selection(normalizeProvider(legacy), 'legacy-env', true);
 
-  return normalizeProvider(process.env.ORACLE_EMBEDDER || process.env.ORACLE_EMBEDDER_BACKEND || process.env.EMBEDDER_TYPE);
+  const raw = firstFilled(process.env.ORACLE_EMBEDDER, process.env.ORACLE_EMBEDDER_BACKEND, process.env.EMBEDDER_TYPE);
+  if (raw) return selection(normalizeProvider(raw), 'env', true);
+
+  return selection('ollama', 'auto-default', false);
 }
 
 export function resolveEmbeddingModel(configured?: string): string | undefined {
@@ -43,4 +58,16 @@ function normalizeProvider(raw?: string): EmbeddingProviderType {
 
   console.warn(`[Embedder] Unknown provider '${raw}', falling back to none/FTS5.`);
   return 'none';
+}
+
+function firstFilled(...values: Array<string | undefined>): string | undefined {
+  return values.map((value) => value?.trim()).find(Boolean);
+}
+
+function selection(
+  provider: EmbeddingProviderType,
+  source: EmbeddingProviderSelection['source'],
+  explicit: boolean,
+): EmbeddingProviderSelection {
+  return { provider, source, explicit };
 }
