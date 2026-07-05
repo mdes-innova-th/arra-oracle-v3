@@ -403,6 +403,7 @@ Closes #[issue-number]
 -   **Modifying database outside Drizzle** - NEVER use direct SQL to ALTER TABLE, CREATE INDEX, or modify schema. Always update `src/db/schema.ts` first, then run `bun db:push`. If db:push finds schema drift (columns/indexes exist in DB but not in schema), add them to schema.ts to preserve data.
 -   **Drizzle db:push index bug** - Drizzle doesn't use `IF NOT EXISTS` for indexes. If indexes already exist (schema drift), db:push fails. Workaround: manually run `CREATE INDEX IF NOT EXISTS` or drop indexes first. Always backup before migrations!
 -   **Committing directly to main** - Always use GitHub flow: create feature branch → push → PR → wait for review/merge approval
+-   **maw hey without --from** - `maw hey` defaults oracle identity to `"mawjs"` (hardcoded fallback in `maw-auth/federation_headers.rs:14`) when global `maw.config.json` lacks `"oracle"` field. From arra-oracle-v3, always use `maw hey --from "m5:arra-oracle-v3"` to sign messages correctly. Root cause: `load_hey_config()` reads CWD-agnostic global config, not project-local identity.
 
 ### Useful Tricks Discovered
 -   **Parallel agents for analysis** - Using multiple agents to analyze different aspects speeds up planning significantly
