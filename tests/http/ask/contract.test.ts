@@ -15,7 +15,9 @@ const term = `askcontract${stamp}`;
 let dbModule: typeof import('../../../src/db/index.ts');
 let route: { handle: (request: Request) => Response | Promise<Response> };
 let createTenantFetch: typeof import('../../../src/middleware/tenant.ts').createTenantFetch;
+let runWithTenant: typeof import('../../../src/middleware/tenant.ts').runWithTenant;
 let tenantHeader: string;
+let handleAsk: typeof import('../../../src/tools/ask.ts').handleAsk;
 
 beforeAll(async () => {
   process.env.ORACLE_DATA_DIR = tempRoot;
@@ -24,8 +26,10 @@ beforeAll(async () => {
   dbModule.resetDefaultDatabaseForTests(process.env.ORACLE_DB_PATH);
   const tenant = await import('../../../src/middleware/tenant.ts');
   createTenantFetch = tenant.createTenantFetch;
+  runWithTenant = tenant.runWithTenant;
   tenantHeader = tenant.TENANT_HEADER;
   const ask = await import('../../../src/routes/ask/index.ts');
+  handleAsk = (await import('../../../src/tools/ask.ts')).handleAsk;
   route = ask.createAskRoutes({ now: () => new Date('2026-06-17T00:00:00.000Z') });
 
   insertDoc(staleId, `Superseded ${term} evidence mentions Phoenix.`, {
@@ -109,9 +113,23 @@ describe('POST /api/ask RAG contract', () => {
 
     expect(res.status).toBe(200);
     expect(body.asOf).toBe('2024-06-01T00:00:00.000Z');
+    expect(body.asOfSupportedEndpoints).toContain('/api/ask');
+    expect(body.asOfSupportedEndpoints).toContain('/api/memory/search');
     expect(body.sources.map((source: { id: string }) => source.id)).toEqual([staleId]);
     expect(body.citations[0]).toMatchObject({ id: staleId, stale: true });
     expect(body.warnings.some((warning: string) => warning.includes('superseded by'))).toBe(true);
+  });
+
+  test('oracle_ask MCP handler returns the same cited answer payload', async () => {
+    const response = await runWithTenant(tenantId, () => handleAsk({ question: `${term} Orbit`, llm: false, limit: 2 }));
+    const body = JSON.parse(response.content[0].text) as Record<string, any>;
+
+    expect(response.isError).toBeUndefined();
+    expect(body).toMatchObject({ query: `${term} Orbit`, noEvidence: false, mode: 'extractive' });
+    expect(body.answer).toContain(term);
+    expect(body.citations[0]).toMatchObject({ id: boostedId, index: 1 });
+    expect(body.citationIndexes).toContain(1);
+    expect(body.sources[0]).toMatchObject({ id: boostedId, entityMatches: ['Orbit'] });
   });
 
   test('returns structured no-evidence response without failing', async () => {

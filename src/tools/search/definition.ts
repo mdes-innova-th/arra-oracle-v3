@@ -49,6 +49,10 @@ export const searchToolDef = {
         enum: ['nomic', 'qwen3', 'bge-m3'],
         description: 'Embedding model: bge-m3 (default, multilingual Thai↔EN, 1024-dim), nomic (fast, 768-dim), or qwen3 (cross-language, 4096-dim)',
       },
+      asOf: {
+        type: 'string',
+        description: 'Valid-time timestamp for historical search, e.g. 2026-06-17T00:00:00Z',
+      },
     },
     required: ['query'],
   },

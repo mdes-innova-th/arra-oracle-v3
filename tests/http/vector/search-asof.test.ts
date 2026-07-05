@@ -64,7 +64,9 @@ test('GET /api/v1/vector/search filters vector hits by asOf valid_time', async (
     expect(res.status).toBe(200);
     expect(store.query).toHaveBeenCalledWith('oracle', 50, undefined);
     expect(body.asOf).toBe('2024-06-01T00:00:00.000Z');
-    expect(body.asOfSupportedEndpoints).toEqual(['/api/search', '/api/list', '/api/vector/search']);
+    expect(body.asOfSupportedEndpoints).toEqual([
+      '/api/search', '/api/list', '/api/vector/search', '/api/ask', '/api/memory/recall', '/api/memory/search',
+    ]);
     expect(body.total).toBe(1);
     expect(body.results).toEqual([expect.objectContaining({
       id: 'past',
