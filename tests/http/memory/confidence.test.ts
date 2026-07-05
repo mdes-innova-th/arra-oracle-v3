@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { memoryConfidence } from '../../../src/routes/memory/confidence.ts';
+import { memoryConfidence, memoryUsageConfidenceConfig } from '../../../src/routes/memory/confidence.ts';
 import type { MemoryRecord } from '../../../src/routes/memory/store.ts';
 
 const now = new Date('2026-06-16T00:00:00.000Z');
@@ -89,6 +89,39 @@ test('retrieval reinforcement boosts stale docs without removing decay warnings'
   expect(reinforced.components.usage).toBeGreaterThan(0.5);
   expect(reinforced.reasons).toContain('retrieval_reinforced');
   expect(reinforced.warnings).toContain('stale_unvalidated');
+});
+
+test('usage confidence weight can be disabled for exact pre-reinforcement scoring', () => {
+  const staleBase = memory({
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  });
+  const unused = memoryConfidence(staleBase, { now, mode: 'keyword', usageWeight: 0 });
+  const reinforced = memoryConfidence({
+    ...staleBase,
+    usageCount: 20,
+    lastAccessedAt: now.toISOString(),
+  }, { now, mode: 'keyword', usageWeight: 0 });
+
+  expect(reinforced.score).toBe(unused.score);
+  expect(reinforced.components.usage).toBeGreaterThan(0);
+  expect(reinforced.reasons).toContain('retrieval_reinforced');
+});
+
+test('usage confidence weight config is a single conservative env knob', () => {
+  expect(memoryUsageConfidenceConfig({})).toMatchObject({
+    usageWeight: 0.1,
+    defaultUsageWeight: 0.1,
+    source: 'default',
+    acceptedRange: { min: 0, max: 0.1 },
+  });
+  expect(memoryUsageConfidenceConfig({ ORACLE_MEMORY_USAGE_CONFIDENCE_WEIGHT: '0' })).toMatchObject({
+    usageWeight: 0,
+    source: 'env',
+    envKey: 'ORACLE_MEMORY_USAGE_CONFIDENCE_WEIGHT',
+  });
+  expect(memoryUsageConfidenceConfig({ ORACLE_MEMORY_USAGE_CONFIDENCE_WEIGHT: '2' }).usageWeight).toBe(0.1);
+  expect(memoryUsageConfidenceConfig({ ORACLE_MEMORY_USAGE_CONFIDENCE_WEIGHT: '-1' }).usageWeight).toBe(0);
 });
 
 test('malformed usage signals do not create NaN confidence or fake recency boosts', () => {

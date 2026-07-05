@@ -114,10 +114,15 @@ Current call sites include:
 
 - `src/server/handlers.ts` for core search results;
 - `src/routes/search/tenant-search.ts` for tenant-scoped FTS results.
+- `src/routes/memory/fanout.ts`, scheduled as non-blocking read-path
+  reinforcement after ranked results are assembled.
 
 Confidence uses a bounded signal: `log1p(usage_count)` plus a 30-day recency
-curve from `last_accessed_at`, then clamps it into the final score. Reinforced
-old memories can rise in rank, but stale/unanchored warnings remain visible.
+curve from `last_accessed_at`, then clamps it into the final score. The single
+operator knob is `ORACLE_MEMORY_USAGE_CONFIDENCE_WEIGHT` (default `0.1`, clamped
+to `0..0.1`; `0` disables usage in confidence without disabling the bump).
+Reinforced old memories can rise in rank, but stale/unanchored warnings remain
+visible.
 
 ## Supersede-not-delete
 

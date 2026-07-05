@@ -8,6 +8,8 @@ type FanoutHit = SearchResult & {
   memorySource?: string;
   createdAt?: string;
   updatedAt?: string;
+  usageCount?: number;
+  lastAccessedAt?: string;
 };
 
 const NOW = new Date('2026-06-17T00:00:00.000Z');
@@ -42,6 +44,25 @@ function confidenceReorderFixture(): Record<string, FanoutHit[]> {
         memorySource: 'session://codex-2684',
         source_file: 'trusted.md',
       }),
+    ],
+  };
+}
+
+function usageTieFixture(): Record<string, FanoutHit[]> {
+  const common = {
+    title: 'Same provenanced note',
+    tags: ['reinforcement'],
+    memorySource: 'session://same',
+    source_file: 'same.md',
+  };
+  return {
+    alpha: [
+      hit('unused', 0.9, common),
+      hit('reinforced', 0.9, { ...common, usageCount: 20, lastAccessedAt: NOW.toISOString() }),
+    ],
+    beta: [
+      hit('reinforced', 0.9, { ...common, usageCount: 20, lastAccessedAt: NOW.toISOString() }),
+      hit('unused', 0.9, common),
     ],
   };
 }
@@ -110,4 +131,15 @@ test('confidenceWeight zero reproduces exact pure RRF scores and ordering', () =
     'gamma-only',
     'beta-only',
   ]);
+});
+
+test('usage confidence term reorders otherwise equal fused results', () => {
+  const fixture = usageTieFixture();
+  const weighted = fuseRankedResults(fixture, 2, { confidenceWeight: 0.25, usageWeight: 0.1, now: NOW });
+  const disabled = fuseRankedResults(fixture, 2, { confidenceWeight: 0.25, usageWeight: 0, now: NOW });
+
+  expect(weighted.map((item) => item.id)).toEqual(['reinforced', 'unused']);
+  expect(weighted[0].confidence.components.usage).toBeGreaterThan(weighted[1].confidence.components.usage);
+  expect(disabled.map((item) => item.id)).toEqual(['unused', 'reinforced']);
+  expect(disabled[0].confidence.score).toBe(disabled[1].confidence.score);
 });
