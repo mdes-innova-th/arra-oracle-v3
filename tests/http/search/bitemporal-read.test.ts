@@ -108,7 +108,8 @@ describe('bi-temporal search read', () => {
       valid_until: new Date(newValid).toISOString(),
     });
     expect(body.asOfSupportedEndpoints).toEqual([
-      '/api/search', '/api/list', '/api/vector/search', '/api/ask', '/api/memory/recall', '/api/memory/search',
+      '/api/search', '/api/list', '/api/vector/search', '/api/ask',
+      '/api/memory/fanout', '/api/memory/recall', '/api/memory/search',
     ]);
   });
 

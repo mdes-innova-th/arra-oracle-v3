@@ -26,6 +26,7 @@ export type EntityLinkRecord = {
 type EntityRankFields = { entity_score?: number; entity_matches?: string[] };
 type Rankable = { id: string; score?: number };
 type LinkRow = { documentId: string; entity: string; entityKey: string; weight: number };
+export type EntitySignal = { score: number; matches: string[] };
 
 export function entityKey(value: string): string {
   return value.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '');
@@ -86,11 +87,34 @@ export function rerankByEntityLinks<T extends Rankable>(
   query: string,
   tenantId?: string,
 ): Array<T & EntityRankFields> {
-  const db = toDb(dbInput);
   const ids = results.map((result) => result.id).filter(Boolean).slice(0, MAX_RANKING_CANDIDATES);
-  const keys = entityKeysForQuery(query);
-  if (ids.length === 0 || keys.length === 0) return results;
+  const signals = entitySignalsForCandidates(dbInput, ids, query, tenantId);
+  if (signals.size === 0) return results;
 
+  return results.map((result, index) => {
+    const signal = signals.get(result.id);
+    const matches = signal?.matches ?? [];
+    const boost = Math.min(ENTITY_BOOST_CAP, matches.length * ENTITY_BOOST_PER_MATCH);
+    return {
+      ...result,
+      score: boost ? Number(((result.score ?? 0) + boost).toFixed(6)) : result.score,
+      ...(boost ? { entity_score: Number(boost.toFixed(3)), entity_matches: matches } : {}),
+      __entityIndex: index,
+    };
+  }).sort((a, b) => ((b.score ?? 0) - (a.score ?? 0)) || a.__entityIndex - b.__entityIndex)
+    .map(({ __entityIndex, ...result }) => result as T & EntityRankFields);
+}
+
+export function entitySignalsForCandidates(
+  dbInput: OracleDbInput,
+  candidateIds: string[],
+  query: string,
+  tenantId?: string,
+): Map<string, EntitySignal> {
+  const db = toDb(dbInput);
+  const ids = [...new Set(candidateIds.filter(Boolean))].slice(0, MAX_RANKING_CANDIDATES);
+  const keys = entityKeysForQuery(query);
+  if (ids.length === 0 || keys.length === 0) return new Map();
   const linkMap = new Map<string, Map<string, LinkRow>>();
   try {
     const rows = db.select({
@@ -116,22 +140,16 @@ export function rerankByEntityLinks<T extends Rankable>(
       linkMap.set(row.documentId, docLinks);
     }
   } catch (error) {
-    if (isMissingEntityTable(error)) return results;
+    if (isMissingEntityTable(error)) return new Map();
     throw error;
   }
-  if (linkMap.size === 0) return results;
+  if (linkMap.size === 0) return new Map();
 
-  return results.map((result, index) => {
-    const matches = [...(linkMap.get(result.id)?.values() ?? [])];
-    const boost = Math.min(ENTITY_BOOST_CAP, matches.length * ENTITY_BOOST_PER_MATCH);
-    return {
-      ...result,
-      score: boost ? Number(((result.score ?? 0) + boost).toFixed(6)) : result.score,
-      ...(boost ? { entity_score: Number(boost.toFixed(3)), entity_matches: matches.map((match) => match.entity) } : {}),
-      __entityIndex: index,
-    };
-  }).sort((a, b) => ((b.score ?? 0) - (a.score ?? 0)) || a.__entityIndex - b.__entityIndex)
-    .map(({ __entityIndex, ...result }) => result as T & EntityRankFields);
+  return new Map([...linkMap.entries()].map(([id, links]) => {
+    const matches = [...links.values()];
+    const total = matches.reduce((sum, match) => sum + Math.max(1, Number(match.weight) || 1), 0);
+    return [id, { score: Math.min(1, total), matches: matches.map((match) => match.entity) }];
+  }));
 }
 
 function entityKeysForQuery(query: string): string[] {

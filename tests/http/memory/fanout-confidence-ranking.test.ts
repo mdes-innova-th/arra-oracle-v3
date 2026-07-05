@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { fuseRankedResults } from '../../../src/routes/memory/fanout.ts';
+import { fanoutEntitySignalConfig, fuseRankedResults } from '../../../src/routes/memory/fanout.ts';
 import type { SearchResult } from '../../../src/server/types.ts';
 
 type FanoutHit = SearchResult & {
@@ -131,6 +131,22 @@ test('confidenceWeight zero reproduces exact pure RRF scores and ordering', () =
     'gamma-only',
     'beta-only',
   ]);
+});
+
+test('entity signal is carved from confidence budget and disabled at zero weight', () => {
+  const fixture: Record<string, FanoutHit[]> = {
+    alpha: [hit('plain-vector-win', 1), hit('linked-entity', 0.9)],
+  };
+  const entitySignals = new Map([['linked-entity', { score: 1, matches: ['OracleNet'] }]]);
+  const pure = fuseRankedResults(fixture, 2, { confidenceWeight: 0, entitySignals, now: NOW });
+  const weighted = fuseRankedResults(fixture, 2, { confidenceWeight: 0.25, entitySignals, now: NOW });
+
+  expect(fanoutEntitySignalConfig(0)).toMatchObject({ enabled: false, weight: 0, graph: false });
+  expect(fanoutEntitySignalConfig(0.25)).toMatchObject({ enabled: true, weight: 0.06, source: 'oracle_entity_links' });
+  expect(pure.map(({ id, fusedScore, rankingScore }) => ({ id, fusedScore, rankingScore })))
+    .toEqual(pureRrfExpected(fixture));
+  expect(weighted.map((item) => item.id)).toEqual(['linked-entity', 'plain-vector-win']);
+  expect(weighted[0]).toMatchObject({ entity_score: 1, entity_matches: ['OracleNet'] });
 });
 
 test('usage confidence term reorders otherwise equal fused results', () => {
