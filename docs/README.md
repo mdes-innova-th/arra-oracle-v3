@@ -28,7 +28,7 @@ is linked here; keep new docs in the right section when adding files.
 | [architecture/mcp-remote-transport.md](./architecture/mcp-remote-transport.md) | Remote MCP Worker transport and `mcp-remote` client bridge contract | Workers, MCP bridge, OAuth |
 | [architecture/deploy-topologies.md](./architecture/deploy-topologies.md) | Choose all-local, Cloudflare edge, Vercel, or federation tunnel deployment. | deploy options, edge/backend/vector split |
 | [architecture/https-localhost-vector-flow.md](./architecture/https-localhost-vector-flow.md) | Sequence diagram for hosted HTTPS Studio calling a localhost Oracle backend and local vector flow. | #2312, localhost, PNA, vector |
-| [architecture/memory-layer.md](./architecture/memory-layer.md) | Memory confidence ranking, retrieval reinforcement, supersede, and consolidation contracts from #2251. | memory, confidence, supersede, consolidation |
+| [architecture/memory-layer.md](./architecture/memory-layer.md) | Complete #2251 memory-layer contract: retrieval, confidence, provenance, consolidation, entity sidecars, and knobs. | memory, confidence, provenance, entity, consolidation |
 | [architecture/memory-pipeline.md](./architecture/memory-pipeline.md) | Diagram the write, FTS, async consolidation, confidence ranking, and bi-temporal read pipeline. | memory pipeline, FTS, asOf, ranking |
 | [memory-demo.md](./memory-demo.md) | Run the #2251 memory walkthrough for provenance, confidence, heat, valid-time, and consolidation. | memory demo, provenance, confidence, heat |
 | [architecture/cloudflared-origin-contract.md](./architecture/cloudflared-origin-contract.md) | `ORACLE_ORIGIN_URL` secret and Cloudflare Tunnel origin contract for Workers. | Cloudflare Tunnel, origin URL, Workers secrets |
