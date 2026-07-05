@@ -114,7 +114,7 @@ function auditApp() {
 }
 
 function request(app: Elysia, endpoint: Endpoint) {
-  const headers: Record<string, string> = { origin: 'http://localhost:3000' };
+  const headers: Record<string, string> = { origin: 'https://studio.buildwithoracle.com' };
   const init: RequestInit = { method: endpoint.method, headers };
   if (endpoint.body !== undefined) {
     headers['content-type'] = 'application/json';

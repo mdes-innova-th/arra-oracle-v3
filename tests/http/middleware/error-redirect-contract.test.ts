@@ -68,17 +68,20 @@ describe('api version 308 redirect contract depth', () => {
     expect(calls).toBe(0);
   });
 
-  test('health subtree bypasses legacy redirects while adjacent API paths still redirect', async () => {
+  test('only exact health bypasses legacy redirects while adjacent API paths still redirect', async () => {
     const app = new Elysia()
-      .get('/api/health/deep', () => ({ status: 'ok' }))
+      .get('/api/health', () => ({ status: 'ok' }))
       .get('/api/healthz', () => ({ status: 'healthz' }));
     const fetcher = createApiVersionedFetch((request) => app.handle(request));
 
+    const health = await fetcher(new Request('http://local/api/health'));
     const deep = await fetcher(new Request('http://local/api/health/deep'));
     const adjacent = await fetcher(new Request('http://local/api/healthz'));
 
-    expect(deep.status).toBe(200);
-    expect(await deep.json()).toEqual({ status: 'ok' });
+    expect(health.status).toBe(200);
+    expect(await health.json()).toEqual({ status: 'ok' });
+    expect(deep.status).toBe(308);
+    expect(deep.headers.get('location')).toBe('http://local/api/v1/health/deep');
     expect(adjacent.status).toBe(308);
     expect(adjacent.headers.get('location')).toBe('http://local/api/v1/healthz');
   });
