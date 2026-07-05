@@ -5,6 +5,7 @@ import { ORACLE_DATA_DIR, DB_PATH } from '../../config.ts';
 import type { DatabaseConnection } from '../../db/index.ts';
 import * as schema from '../../db/schema.ts';
 import { auditLog } from '../../storage/audit-log.ts';
+import { isMissingTableError } from '../../db/errors.ts';
 import { createStorageBackend } from '../../storage/registry.ts';
 
 interface DumpColumn {
@@ -150,7 +151,8 @@ function columnDefinition(column: DumpColumn): string {
 }
 
 function selectRows(connection: DatabaseConnection, table: DumpTable): DumpRow[] {
-  return (connection.db as any).select().from(table).all() as DumpRow[];
+  try { return (connection.db as any).select().from(table).all() as DumpRow[]; }
+  catch (error) { if (isMissingTableError(error)) return []; throw error; }
 }
 
 function insertSql(tableName: string, columns: Array<[string, DumpColumn]>, row: DumpRow): string {

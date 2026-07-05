@@ -21,6 +21,7 @@ import { exportFileInventory } from './inventory.ts';
 import { exportBundleReadme } from './bundle-readme.ts';
 import { selectExportTables, shouldExportDocuments } from './collections.ts';
 import { writeStandaloneBackupDump } from './backup.ts';
+import { isMissingTableError } from '../../src/db/errors.ts';
 
 type ExportTable = Parameters<typeof getTableName>[0];
 type Progress = (message: string, event?: ExportProgressEvent) => void;
@@ -160,7 +161,8 @@ function openReadonlyConnection(dbPath = DB_PATH): { connection: DatabaseConnect
 }
 
 function selectRows(connection: DatabaseConnection, table: ExportTable): ExportRecord[] {
-  return (connection.db as any).select().from(table).all() as ExportRecord[];
+  try { return (connection.db as any).select().from(table).all() as ExportRecord[]; }
+  catch (error) { if (isMissingTableError(error)) return []; throw error; }
 }
 
 function reportProgress(progress: Progress, event: Omit<ExportProgressEvent, 'percent'>): void {

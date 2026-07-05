@@ -4,6 +4,7 @@ import { getTableName, isTable } from 'drizzle-orm';
 import { DB_PATH } from '../../config.ts';
 import * as schema from '../../db/schema.ts';
 import { createStorageBackend } from '../../storage/registry.ts';
+import { isMissingTableError } from '../../db/errors.ts';
 import {
   EXPORT_FORMATS,
   extensionFor,
@@ -59,12 +60,17 @@ function readCollections(names: string[]): CollectionMap {
     for (const name of names) {
       const table = tables.get(name);
       if (!table) throw new Error(`Unknown export collection: ${name}`);
-      out[name] = normalizeRecords(storage.db.select().from(table).all() as ExportRecord[]);
+      out[name] = normalizeRecords(selectRows(storage.db, table));
     }
     return out;
   } finally {
     storage.close();
   }
+}
+
+function selectRows(db: unknown, table: ExportTable): ExportRecord[] {
+  try { return (db as any).select().from(table).all() as ExportRecord[]; }
+  catch (error) { if (isMissingTableError(error)) return []; throw error; }
 }
 
 function normalizeCollectionNames(input: string[]): string[] {
