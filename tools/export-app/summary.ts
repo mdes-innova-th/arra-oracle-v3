@@ -7,6 +7,7 @@ import { graphRelationships } from './graph.ts';
 import { normalizeRecords, type ExportRecord } from './formats.ts';
 import { readOracleV2Documents } from './documents.ts';
 import { selectExportTables, shouldExportDocuments } from './collections.ts';
+import { isMissingTableError } from '../../src/db/errors.ts';
 
 type ExportTable = ReturnType<typeof introspectDrizzleTables>[number];
 
@@ -65,5 +66,6 @@ function openReadonlyConnection(dbPath = DB_PATH): { connection: DatabaseConnect
 }
 
 function selectRows(connection: DatabaseConnection, table: ExportTable): ExportRecord[] {
-  return (connection.db as any).select().from(table).all() as ExportRecord[];
+  try { return (connection.db as any).select().from(table).all() as ExportRecord[]; }
+  catch (error) { if (isMissingTableError(error)) return []; throw error; }
 }
