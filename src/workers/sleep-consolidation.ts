@@ -3,8 +3,10 @@ import { ensureVectorStoreConnected, getEmbeddingModels, type EmbeddingModelConf
 import type { VectorQueryResult, VectorStoreAdapter } from '../vector/types.ts';
 import { memoryConfidence } from '../routes/memory/confidence.ts';
 import type { MemoryRecord } from '../routes/memory/store.ts';
+import type { AskClient } from '../routes/ask/synthesis.ts';
 import type { ConsolidationPlan } from './consolidation.ts';
 import { queueConsolidationSuggestions, queuedConsolidationCount } from './consolidation-queue.ts';
+import { llmConsolidationEnabled, llmConsolidationStatus, runLlmConsolidationPass, type LlmConsolidationPassResult } from './sleep-consolidation-llm.ts';
 
 type QueryStore = Pick<VectorStoreAdapter, 'queryById'>;
 type Env = Record<string, string | undefined>;
@@ -22,6 +24,7 @@ export type SleepConsolidationOptions = {
   now?: number;
   models?: () => Record<string, EmbeddingModelConfig>;
   connect?: (key: string, models: Record<string, EmbeddingModelConfig>) => Promise<QueryStore>;
+  llmClient?: AskClient;
   logger?: Logger;
 };
 
@@ -33,10 +36,12 @@ export type SleepConsolidationResult = {
   queueSize: number;
   deleted: 0;
   plans: ConsolidationPlan[];
+  llm?: LlmConsolidationPassResult;
 };
 
 export type SleepConsolidationStatus = {
   enabled: boolean;
+  vectorEnabled: boolean;
   running: boolean;
   intervalMs: number;
   similarityThreshold: number;
@@ -46,6 +51,7 @@ export type SleepConsolidationStatus = {
   lastSuggestionsEmitted: number;
   suggestionsEmitted: number;
   queueSize: number;
+  llm: ReturnType<typeof llmConsolidationStatus>;
   lastError?: string;
   disabledReason?: string;
 };
@@ -60,8 +66,10 @@ const status = {
 };
 
 export function sleepConsolidationConfig(env: Env = process.env) {
+  const vectorEnabled = env.ORACLE_CONSOLIDATION_WORKER === '1';
   return {
-    enabled: env.ORACLE_CONSOLIDATION_WORKER === '1',
+    enabled: vectorEnabled || llmConsolidationEnabled(env),
+    vectorEnabled,
     intervalMs: intEnv(env.ORACLE_CONSOLIDATION_WORKER_INTERVAL_MS, DEFAULT_INTERVAL_MS, 60_000, 86_400_000),
     similarityThreshold: floatEnv(env.ORACLE_CONSOLIDATION_SIMILARITY_THRESHOLD, DEFAULT_SIMILARITY_THRESHOLD, 0, 1),
   };
@@ -72,8 +80,9 @@ export function sleepConsolidationStatus(env: Env = process.env): SleepConsolida
   return {
     ...status,
     ...config,
+    llm: llmConsolidationStatus(env),
     queueSize: queuedConsolidationCount(),
-    ...(config.enabled ? {} : { disabledReason: 'set ORACLE_CONSOLIDATION_WORKER=1 to enable' }),
+    ...(config.enabled ? {} : { disabledReason: 'set ORACLE_CONSOLIDATION_WORKER=1 or ORACLE_CONSOLIDATION_LLM=1 to enable' }),
   };
 }
 
@@ -86,8 +95,9 @@ export async function runSleepConsolidationSweep(
   if (!config.enabled && !input.force) return finish(config.enabled, started, [], 0);
   const now = input.now ?? started;
   try {
-    const docs = loadDocs(sqlite, Math.min(MAX_SCAN_LIMIT, Math.max(0, Math.floor(input.limit ?? 250))), now);
-    const plans = await vectorPlans(docs, config.similarityThreshold, input);
+    const runVector = config.vectorEnabled || input.force;
+    const docs = runVector ? loadDocs(sqlite, Math.min(MAX_SCAN_LIMIT, Math.max(0, Math.floor(input.limit ?? 250))), now) : [];
+    const plans = runVector ? await vectorPlans(docs, config.similarityThreshold, input) : [];
     const queued = queueConsolidationSuggestions(plans.map((plan) => ({
       ...plan,
       queuedAt: now,
@@ -95,7 +105,8 @@ export async function runSleepConsolidationSweep(
       model: modelFromReason(plan.reason),
       similarity: plan.cosine,
     })));
-    return finish(true, started, plans, docs.length, queued.emitted);
+    const llm = await runLlmConsolidationPass(sqlite, { ...input, now, dedupThreshold: config.similarityThreshold });
+    return finish(true, started, [...plans, ...llm.plans], Math.max(docs.length, llm.scanned), queued.emitted + llm.suggestionsEmitted, llm);
   } catch (error) {
     status.lastError = error instanceof Error ? error.message : String(error);
     input.logger?.error?.(status.lastError);
@@ -201,14 +212,14 @@ function similarityFromDistance(value: unknown): number {
   return round(distance <= 1 ? 1 - distance : 1 / (1 + distance));
 }
 
-function finish(enabled: boolean, started: number, plans: ConsolidationPlan[], scanned: number, emitted = 0): SleepConsolidationResult {
+function finish(enabled: boolean, started: number, plans: ConsolidationPlan[], scanned: number, emitted = 0, llm?: LlmConsolidationPassResult): SleepConsolidationResult {
   status.lastRun = new Date(started).toISOString();
   status.lastDurationMs = Date.now() - started;
   status.lastScanned = scanned;
   status.lastSuggestionsEmitted = emitted;
   status.suggestionsEmitted += emitted;
   status.queueSize = queuedConsolidationCount();
-  return { enabled, scanned, planned: plans.length, suggestionsEmitted: emitted, queueSize: status.queueSize, deleted: 0, plans };
+  return { enabled, scanned, planned: plans.length, suggestionsEmitted: emitted, queueSize: status.queueSize, deleted: 0, plans, ...(llm ? { llm } : {}) };
 }
 
 function objectExists(sqlite: Database, name: string): boolean {

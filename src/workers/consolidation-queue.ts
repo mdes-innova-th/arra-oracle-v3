@@ -2,7 +2,7 @@ import type { ConsolidationPlan } from './consolidation.ts';
 
 export type QueuedConsolidationPlan = ConsolidationPlan & {
   queuedAt: number;
-  source: 'sleep-time-vector';
+  source: 'sleep-time-vector' | 'sleep-time-llm';
   model: string;
   similarity: number;
 };
@@ -21,7 +21,7 @@ export function queueConsolidationSuggestions(
   return { emitted, total: queue.size };
 }
 
-export function listQueuedConsolidationPlans(tenantId: string, limit = 250): ConsolidationPlan[] {
+export function listQueuedConsolidationPlans(tenantId: string, limit = 250): QueuedConsolidationPlan[] {
   return [...queue.values()]
     .filter((plan) => plan.tenantId === tenantId)
     .sort((a, b) => b.queuedAt - a.queuedAt)
