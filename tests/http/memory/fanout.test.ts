@@ -132,6 +132,7 @@ test('GET /api/v1/memory/fanout uses confidence to reorder fresh high-provenance
   const body = await json(response);
 
   expect(body.ranking).toMatchObject({
+    strategy: 'confidence_weighted_rrf',
     rrfK: 60,
     confidenceWeight: 0.25,
     confidenceRerankingEnabled: true,

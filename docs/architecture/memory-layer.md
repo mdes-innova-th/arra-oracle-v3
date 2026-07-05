@@ -62,12 +62,16 @@ Operational knobs:
 
 `/api/health` exposes `memory.fanoutReranking` with the effective weight,
 source, env key, and `confidence_weighted_rrf` strategy for operators.
+`/api/v1/memory/fanout` repeats that strategy in `ranking.strategy` beside each
+result's `rankingScore`; setting `confidenceWeight` to `0` keeps confidence
+labels but makes ordering exact pure RRF.
 
 The fan-out response also exposes the ranking contract so clients can explain ordering:
 
 ```json
 {
   "ranking": {
+    "strategy": "confidence_weighted_rrf",
     "rrfK": 60,
     "confidenceWeight": 0.25,
     "confidenceRerankingEnabled": true,
