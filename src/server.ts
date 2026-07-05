@@ -72,6 +72,7 @@ import { tenantsRoutes } from './routes/tenants/index.ts';
 import { watcherRoutes } from './routes/watcher/index.ts';
 import { indexerRoutes } from './routes/indexer/index.ts';
 import { fileWatcherService } from './services/file-watcher.ts';
+import { createSleepConsolidationWorker } from './workers/sleep-consolidation.ts';
 import { gatewayPlugin } from './gateway/index.ts';
 import { simpleModeResponse } from './simple-mode.ts';
 import pkg from '../package.json' with { type: 'json' };
@@ -168,6 +169,9 @@ export async function createStartedApp(options: StartServerOptions = {}): Promis
     writePidFile({ pid: process.pid, port: Number(PORT), startedAt: new Date().toISOString(), name: 'oracle-http' });
   }
   if (process.env.ORACLE_FILE_WATCHER !== '0') fileWatcherService.start();
+  const consolidationWorker = createSleepConsolidationWorker(sqlite);
+  consolidationWorker.start();
+  registerGracefulShutdown({ close: async () => consolidationWorker.stop() });
 
   const pluginDirs = defaultUnifiedPluginDirs([join(import.meta.dir, 'plugins')]);
   const pluginWarn = (message: string) => console.warn(message);
