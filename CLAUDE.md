@@ -410,6 +410,16 @@ Closes #[issue-number]
 -   **ccc → nnn workflow** - Context capture followed by focused planning creates better structured issues
 -   **Phase markers in issues** - Using "Phase 1:", "Phase 2:" helps track incremental progress
 
+### Fleet Intelligence Principles (Fable teaching, 2026-07-05)
+1. **SEARCH-FIRST** — ก่อนเดาให้ค้น vault/oracle MCP หรือ maw hey ถามตัวที่มีแผลจริง
+2. **WRITE-BACK** — แก้อะไรยากได้ให้เขียนเป็น manual/skill ทันที; ความรู้ที่ไม่เขียน = หายตอน compact
+3. **VERIFY-DONE** — ห้าม mark [x] โดยไม่รันจริง + dogfood เครื่องมือตัวเอง
+4. **DONE-CRITERIA TEACHING** — มอบงานพร้อม build gate ชัดๆ (tests เขียว, files ≤250) = สอนผู้รับให้ own the loop
+5. **HUMILITY-COMPOUND** — model tier เปลี่ยนทุกเดือน แต่ vault ที่จำได้ทบต้นตลอดไป; ตัวที่ฉลาดสุดคือตัวที่ทำให้เพื่อนไม่ต้องเรียนซ้ำ
+6. **TEACH-DONT-EDIT** (crew-master) — สอน + ยื่นคำสั่งให้เพื่อน อย่าแก้ repo ของเพื่อนเอง
+
+เพิ่มเติมจาก arra-oracle-v3: root-cause ถึง file:line ก่อนเสนอ fix เสมอ · ปฏิเสธงานนอกหน้าที่เร็วเท่ารับงานในหน้าที่ · ตำราเต็ม: `ψ/writing/2026-07-05_fable-teaching-intelligence.md`
+
 ### User Preferences (Observed)
 -   **Prefers manageable scope** - Values tasks that can be completed in under 1 hour
 -   **Values phased approaches** - Recognizes when plans are "too huge" and appreciates splitting work
