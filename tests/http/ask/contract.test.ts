@@ -10,7 +10,10 @@ const staleId = `stale-${stamp}`;
 const currentId = `current-${stamp}`;
 const boostedId = `boosted-${stamp}`;
 const plainId = `plain-${stamp}`;
+const aliasPlainId = `alias-plain-${stamp}`;
+const aliasLinkedId = `alias-linked-${stamp}`;
 const term = `askcontract${stamp}`;
+const aliasTerm = `askalias${stamp}`;
 
 let dbModule: typeof import('../../../src/db/index.ts');
 let route: { handle: (request: Request) => Response | Promise<Response> };
@@ -41,7 +44,10 @@ beforeAll(async () => {
   });
   insertDoc(plainId, `${term} plain evidence for Orbit.`);
   insertDoc(boostedId, `${term} boosted evidence for Orbit.`);
+  insertDoc(aliasPlainId, `${aliasTerm} plain acronym evidence.`);
+  insertDoc(aliasLinkedId, `${aliasTerm} full-name acronym evidence.`);
   insertEntity(boostedId, 'Orbit');
+  insertEntity(aliasLinkedId, 'Application Programming Interface');
 });
 
 function insertDoc(id: string, content: string, options: { supersededBy?: string | null; validTime?: number } = {}) {
@@ -67,7 +73,7 @@ function insertDoc(id: string, content: string, options: { supersededBy?: string
 }
 
 function insertEntity(documentId: string, entity: string) {
-  const key = entity.toLowerCase();
+  const key = entityKey(entity);
   dbModule.db.insert(dbModule.oracleEntityLinks).values({
     id: `${tenantId}:${documentId}:${key}`,
     tenantId,
@@ -78,6 +84,10 @@ function insertEntity(documentId: string, entity: string) {
     createdAt: Date.now(),
     updatedAt: Date.now(),
   }).run();
+}
+
+function entityKey(value: string): string {
+  return value.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '');
 }
 
 function post(body: Record<string, unknown>) {
@@ -150,5 +160,16 @@ describe('POST /api/ask RAG contract', () => {
     expect(res.status).toBe(200);
     expect(body.sources[0]).toMatchObject({ id: boostedId, entityMatches: ['Orbit'] });
     expect(body.citations[0]).toMatchObject({ id: boostedId });
+  });
+
+  test('reuses search acronym augmentation before ask retrieval and ranking', async () => {
+    const res = await post({ question: `API ${aliasTerm}`, llm: false, limit: 2 });
+    const body = await res.json() as Record<string, any>;
+
+    expect(res.status).toBe(200);
+    expect(body.query).toBe(`API ${aliasTerm}`);
+    expect(body.sources.map((source: { id: string }) => source.id)).toEqual([aliasLinkedId, aliasPlainId]);
+    expect(body.citations[0]).toMatchObject({ id: aliasLinkedId, index: 1 });
+    expect(body.sources[0].entityMatches).toContain('Application Programming Interface');
   });
 });
