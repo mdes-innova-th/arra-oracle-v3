@@ -11,20 +11,18 @@ import { createExportTestConnectionRoutes } from './test-connection.ts';
 import { rememberExportProgress } from './progress.ts';
 import { canReadTenantResource, currentExportTenantId, tenantScopedOutputDir, tenantWhereFor } from './tenant.ts';
 import { recordExportHistory } from './history-store.ts';
-
+import { isMissingTableError } from '../../db/errors.ts';
 type ExportRecord = Record<string, unknown>;
 type BaseExportFormat = 'json' | 'csv' | 'markdown';
 type ExportFormat = BaseExportFormat | 'jsonl';
 type DumpTable = ReturnType<typeof introspectDrizzleTables>[number];
 type QueryConnection = Pick<DatabaseConnection, 'db'>;
-
 interface ExportTools {
   extensionFor(format: BaseExportFormat): string;
   formatCollection(name: string, rows: ExportRecord[], format: BaseExportFormat): string;
   normalizeRecords(rows: ExportRecord[]): ExportRecord[];
   graphRelationships(collections: Record<string, ExportRecord[]>): ExportRecord[];
 }
-
 interface ExportJob {
   jobId: string;
   tenantId?: string;
@@ -39,7 +37,6 @@ interface ExportJob {
   sizeBytes: number;
   createdAt: string;
 }
-
 export interface ExportAppDeps {
   connection?: QueryConnection;
   outputDir?: string;
@@ -65,9 +62,14 @@ function tableMap(): Map<string, DumpTable> {
 }
 
 function selectRows(connection: QueryConnection, table: DumpTable): ExportRecord[] {
-  const query = (connection.db as any).select().from(table);
-  const where = tenantWhereFor(table);
-  return (where ? query.where(where) : query).all() as ExportRecord[];
+  try {
+    const query = (connection.db as any).select().from(table);
+    const where = tenantWhereFor(table);
+    return (where ? query.where(where) : query).all() as ExportRecord[];
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
 }
 
 function safeName(value: string): string {

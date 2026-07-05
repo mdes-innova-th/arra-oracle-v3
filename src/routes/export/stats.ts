@@ -5,6 +5,7 @@ import path from 'node:path';
 import { ORACLE_DATA_DIR } from '../../config.ts';
 import { db as defaultDb, type DatabaseConnection } from '../../db/index.ts';
 import { introspectDrizzleTables } from '../../cli/commands/backup.ts';
+import { isMissingTableError } from '../../db/errors.ts';
 
 type ExportRecord = Record<string, unknown>;
 type DumpTable = ReturnType<typeof introspectDrizzleTables>[number];
@@ -27,7 +28,12 @@ function connectionFrom(deps: ExportStatsDeps): QueryConnection {
 }
 
 function selectRows(connection: QueryConnection, table: DumpTable): ExportRecord[] {
-  return (connection.db as any).select().from(table).all() as ExportRecord[];
+  try {
+    return (connection.db as any).select().from(table).all() as ExportRecord[];
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
 }
 
 export function formatExportSize(bytes: number): string {

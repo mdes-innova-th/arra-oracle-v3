@@ -74,6 +74,8 @@ function exportCollection(format: string, extra: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
+  const psiDir = join(root, 'psi');
+  if (existsSync(psiDir)) rmSync(psiDir, { recursive: true });
   dbMod.db.delete(dbMod.exportJobs).run();
   dbMod.db.delete(dbMod.learnLog).run();
   dbMod.db.delete(dbMod.oracleDocuments).run();
