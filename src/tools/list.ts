@@ -8,6 +8,8 @@ import { and, eq, sql } from 'drizzle-orm';
 import { oracleDocuments } from '../db/schema.ts';
 import type { ToolContext, ToolResponse, OracleListInput } from './types.ts';
 import { currentTenantId, tenantSql } from '../middleware/tenant.ts';
+import { filterResultsAsOf, parseAsOf } from '../search/bitemporal.ts';
+import { asOfResponse } from '../routes/search/asof.ts';
 
 export const listToolDef = {
   name: 'oracle_list',
@@ -30,6 +32,10 @@ export const listToolDef = {
         type: 'number',
         description: 'Number of documents to skip (for pagination)',
         default: 0
+      },
+      asOf: {
+        type: 'string',
+        description: 'Valid-time timestamp for historical browse, e.g. 2026-06-17T00:00:00Z'
       }
     },
     required: []
@@ -63,6 +69,8 @@ export async function handleList(ctx: ToolContext, input: OracleListInput): Prom
   if (typeof type !== 'string') throw new Error('type must be a string');
   const limit = integerInput(raw.limit, 10, 'limit');
   const offset = integerInput(raw.offset, 0, 'offset');
+  const asOf = parseAsOf(typeof raw.asOf === 'string' ? raw.asOf : undefined);
+  if (!asOf.ok) throw new Error(asOf.error);
 
   if (limit < 1 || limit > 100) {
     throw new Error('limit must be between 1 and 100');
@@ -116,11 +124,12 @@ export async function handleList(ctx: ToolContext, input: OracleListInput): Prom
     concepts: parseConcepts(row.concepts),
     indexed_at: row.indexed_at,
   }));
+  const filtered = filterResultsAsOf(ctx.sqlite, documents, asOf.value, tenantId);
 
   return {
     content: [{
       type: 'text',
-      text: JSON.stringify({ documents, total, limit, offset, type }, null, 2)
+      text: JSON.stringify({ documents: filtered, total: asOf.value ? filtered.length : total, limit, offset, type, ...asOfResponse(asOf.value) }, null, 2)
     }]
   };
 }

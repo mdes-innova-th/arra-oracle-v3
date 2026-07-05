@@ -5,8 +5,10 @@ import { rerankByEntityLinks } from '../../search/entity-ranking.ts';
 import { queryPointerIndex } from '../../search/pointer-index.ts';
 import { rerankCandidates } from '../../server/reranker.ts';
 import type { SearchResult } from '../../server/types.ts';
+import { filterResultsAsOf, parseAsOf } from '../../search/bitemporal.ts';
 import { compactSearchResults, parseSearchRetrievalMode } from '../../search/compact-summary.ts';
 import { candidatePoolSize } from '../../search/retrieve-depth.ts';
+import { asOfResponse } from '../../routes/search/asof.ts';
 import { isVectorSectionEnabled } from '../../vector/config.ts';
 import type { ToolContext, ToolResponse, OracleSearchInput } from '../types.ts';
 import { applyEntityLinkBoost, hasEntityLinkSearchHook, queryEntityLinks } from './entities.ts';
@@ -26,6 +28,8 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
   if (!query || query.trim().length === 0) throw new Error('Query cannot be empty');
   const retrieval = parseSearchRetrievalMode(input.retrieval);
   if (!retrieval.ok) throw new Error(retrieval.error);
+  const asOf = parseAsOf(input.asOf);
+  if (!asOf.ok) throw new Error(asOf.error);
 
   const augmentedQuery = augmentQueryWithAcronyms(query);
   const safeQuery = sanitizeFtsQuery(augmentedQuery);
@@ -99,8 +103,13 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
     }
   }
   const entityBoost = applyEntityLinkBoost(finalResults, entityLinkHits);
-  const totalMatches = entityBoost.results.length;
-  let results: Array<Record<string, unknown>> = attachSearchEvidence(entityBoost.results.slice(offset, offset + limit));
+  const temporalResults = filterResultsAsOf(
+    ctx.sqlite,
+    entityBoost.results as unknown as Array<Record<string, unknown>>,
+    asOf.value,
+  ) as unknown as typeof entityBoost.results;
+  const totalMatches = temporalResults.length;
+  let results: Array<Record<string, unknown>> = attachSearchEvidence(temporalResults.slice(offset, offset + limit));
   enrichSupersedeFlags(ctx, results);
   const compact = retrieval.mode === 'compact-summary' ? compactSearchResults(results, query) : null;
   if (compact) results = compact.results;
@@ -139,6 +148,7 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
     } : {}),
     ...(compact ? { retrieval: compact.metadata } : {}),
     ...(warning ? { warning } : {}),
+    ...asOfResponse(asOf.value),
   };
 
   console.error(`[MCP:SEARCH] "${query}" (${type}, ${mode}, model=${model || 'default'}) → ${results.length} results in ${searchTime}ms`);
@@ -152,7 +162,7 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
   return {
     content: [{
       type: 'text',
-      text: JSON.stringify({ results, total: results.length, query, metadata }, null, 2),
+      text: JSON.stringify({ results, total: results.length, query, ...asOfResponse(asOf.value), metadata }, null, 2),
     }],
   };
 }

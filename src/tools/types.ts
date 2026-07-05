@@ -44,6 +44,7 @@ export interface OracleSearchInput {
   project?: string;
   cwd?: string;
   model?: 'nomic' | 'qwen3' | 'bge-m3';
+  asOf?: string;
 }
 
 export interface OracleReflectInput {}
@@ -59,6 +60,7 @@ export interface OracleListInput {
   type?: 'principle' | 'pattern' | 'learning' | 'retro' | 'all';
   limit?: number;
   offset?: number;
+  asOf?: string;
 }
 
 export interface OracleStatsInput {}

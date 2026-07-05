@@ -1,4 +1,11 @@
-export const AS_OF_SUPPORTED_ENDPOINTS = ['/api/search', '/api/list', '/api/vector/search'] as const;
+export const AS_OF_SUPPORTED_ENDPOINTS = [
+  '/api/search',
+  '/api/list',
+  '/api/vector/search',
+  '/api/ask',
+  '/api/memory/recall',
+  '/api/memory/search',
+] as const;
 
 export function asOfResponse(asOfMs: number | undefined): Record<string, unknown> {
   return asOfMs ? {

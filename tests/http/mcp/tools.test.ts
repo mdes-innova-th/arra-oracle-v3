@@ -22,6 +22,7 @@ test('GET /api/mcp/tools returns core and plugin tool metadata', async () => {
   expect(res.status).toBe(200);
   const body = await res.json() as { tools: Array<Record<string, unknown>>; total: number };
   expect(body.total).toBe(body.tools.length);
+  expect(body.tools).toContainEqual(expect.objectContaining({ name: 'oracle_ask', source: 'core', group: 'search' }));
   expect(body.tools).toContainEqual(expect.objectContaining({ name: 'oracle_search', source: 'core', group: 'search' }));
   expect(body.tools).toContainEqual(expect.objectContaining({
     name: 'oracle_canvas_inspect',
@@ -41,6 +42,22 @@ test('GET /api/mcp/tools drives core tools from the pure MCP REST map', async ()
   expect(coreTools.find((tool) => tool.name === 'oracle_search')).toMatchObject({
     remoteable: true,
     rest: { method: 'GET', path: '/api/search' },
+  });
+  expect(coreTools.find((tool) => tool.name === 'oracle_ask')).toMatchObject({
+    remoteable: true,
+    rest: { method: 'POST', path: '/api/ask' },
+  });
+  const askSchema = coreTools.find((tool) => tool.name === 'oracle_ask')?.inputSchema as Record<string, any>;
+  const searchSchema = coreTools.find((tool) => tool.name === 'oracle_search')?.inputSchema as Record<string, any>;
+  const listSchema = coreTools.find((tool) => tool.name === 'oracle_list')?.inputSchema as Record<string, any>;
+  expect(askSchema.properties.asOf).toMatchObject({ type: 'string' });
+  expect(searchSchema.properties.asOf).toMatchObject({ type: 'string' });
+  expect(listSchema.properties.asOf).toMatchObject({ type: 'string' });
+  expect(mcpRestMap.find((entry) => entry.name === 'oracle_search')).toMatchObject({
+    query: expect.arrayContaining([{ arg: 'asOf', param: 'asOf' }]),
+  });
+  expect(mcpRestMap.find((entry) => entry.name === 'oracle_list')).toMatchObject({
+    query: expect.arrayContaining([{ arg: 'asOf', param: 'asOf' }]),
   });
   expect(coreTools.find((tool) => tool.name === 'oracle_mcp_call')).toMatchObject({
     remoteable: false,

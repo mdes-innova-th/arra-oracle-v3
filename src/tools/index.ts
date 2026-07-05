@@ -22,6 +22,9 @@ export type {
 // Recap
 export { recapToolDef, handleRecap } from './recap.ts';
 
+// Ask
+export { askToolDef, handleAsk } from './ask.ts';
+
 // Search (+ pure helpers)
 export {
   searchToolDef,

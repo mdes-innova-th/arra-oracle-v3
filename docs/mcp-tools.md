@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-arra-oracle-v3 exposes 28 MCP tools across configurable groups, Oracle profiles, bridge tools, and standalone tools.
+arra-oracle-v3 exposes 30 MCP tools across configurable groups, Oracle profiles, bridge tools, and standalone tools.
 
 ## Tool Groups
 
@@ -20,13 +20,14 @@ Groups can be enabled/disabled via `arra.config.json` (repo-local) or `~/.arra-o
 }
 ```
 
-## Search (4 tools)
+## Search (5 tools)
 
 | Tool | Description |
 |------|-------------|
-| `oracle_search` | Hybrid search (FTS5 keywords + vector similarity). Finds principles, patterns, learnings, retros. |
+| `oracle_ask` | Grounded ask over Oracle memory/search. Returns `answer`, `citations`, `citationIndexes`, `warnings`, `noEvidence`, `sources`, and optional `asOf`. |
+| `oracle_search` | Hybrid search (FTS5 keywords + vector similarity). Supports `asOf` valid-time lookup. |
 | `oracle_read` | Read full content of a document by file path or document ID. |
-| `oracle_list` | Browse all documents without searching. Supports type/date filters and pagination. |
+| `oracle_list` | Browse all documents without searching. Supports type/date/asOf filters and pagination. |
 | `oracle_concepts` | List all concept tags with document counts. Discover topic coverage. |
 
 ## Knowledge (4 tools)
@@ -87,6 +88,16 @@ Groups can be enabled/disabled via `arra.config.json` (repo-local) or `~/.arra-o
 | `____IMPORTANT` | Meta-documentation tool — workflow guide shown in tool list. |
 | `oracle_mcp_list_tools` | List tools exposed by configured external MCP servers. |
 | `oracle_mcp_call` | Call a tool exposed by a configured external MCP server. |
+
+## Consolidation governance decision
+
+Memory consolidation review stays HTTP-first for now: use
+`GET /api/v1/memory/consolidation/pending` or `/suggestions`, then approve or
+reject via the HTTP endpoints only after an explicit human decision. MCP does
+not expose approve/reject tools yet because those actions must carry an audited
+actor (`x-oracle-actor`, `x-actor`, `x-user`, or `x-user-id`) plus a reason.
+Any future MCP consolidation approval tool must require `actor` in its schema;
+background or anonymous auto-approval is not allowed.
 
 ## Read-Only Mode
 
