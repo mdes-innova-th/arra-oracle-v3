@@ -3,8 +3,10 @@ import type { SearchResult } from '../../server/types.ts';
 import { ensureVectorStoreConnected, getEmbeddingModels, type EmbeddingModelConfig } from '../../vector/factory.ts';
 import type { VectorQueryResult, VectorStoreAdapter } from '../../vector/types.ts';
 import { memoryConfidence, type MemoryConfidence } from './confidence.ts';
+import { estimateFanoutCost } from './fanout-cost.ts';
 import { safeVectorDistance, scoreFromVectorDistance } from './fanout-score.ts';
 import { MemoryFanoutQuery, parseMemoryLimit } from './model.ts';
+import { scheduleMemoryReinforcement } from './reinforcement.ts';
 import { clampMemoryConfidenceWeight, memoryConfidenceRerankConfig, memoryFanoutConfidenceWeight } from './rerank-config.ts';
 import type { MemoryRecord } from './store.ts';
 
@@ -14,6 +16,7 @@ type MemoryFanoutDeps = {
   models?: () => Record<string, EmbeddingModelConfig>;
   connect?: (key: string, models: Record<string, EmbeddingModelConfig>) => Promise<QueryStore>;
   confidenceWeight?: number;
+  reinforce?: (ids: string[]) => void | Promise<void>;
   now?: () => Date;
 };
 
@@ -39,23 +42,6 @@ const RRF_K = 60;
 
 function sanitize(q: string): string {
   return q.replace(/<[^>]*>/g, '').replace(/[\x00-\x1f]/g, '').trim();
-}
-
-function estimateTokens(text: string): number {
-  return Math.max(1, Math.ceil(text.length / 4));
-}
-
-function estimateCost(query: string, collections: string[]) {
-  const inputTokens = estimateTokens(query);
-  const vectorQueries = collections.length;
-  return {
-    inputTokens,
-    vectorQueries,
-    embeddingCalls: vectorQueries,
-    estimatedTokenUnits: inputTokens * vectorQueries,
-    estimatedUsd: 0,
-    note: 'Local vector collections have no metered API cost; token units estimate remote embedder exposure.',
-  };
 }
 
 function text(value: unknown): string | undefined {
@@ -111,7 +97,7 @@ function toSearchResults(collection: string, result: VectorQueryResult): FanoutS
   });
 }
 
-function confidenceFor(result: FanoutSearchResult, now: Date): MemoryConfidence {
+function confidenceFor(result: FanoutSearchResult, now: Date, usageWeight?: number): MemoryConfidence {
   const timestamp = result.updatedAt ?? result.createdAt ?? new Date(0).toISOString();
   const memory: MemoryRecord = {
     id: result.id,
@@ -124,7 +110,7 @@ function confidenceFor(result: FanoutSearchResult, now: Date): MemoryConfidence 
     usageCount: result.usageCount,
     lastAccessedAt: result.lastAccessedAt,
   };
-  return memoryConfidence(memory, { mode: 'semantic', semanticScore: result.score ?? 0, now });
+  return memoryConfidence(memory, { mode: 'semantic', semanticScore: result.score ?? 0, now, usageWeight });
 }
 
 function round6(value: number): number {
@@ -134,7 +120,7 @@ function round6(value: number): number {
 export function fuseRankedResults(
   byCollection: Record<string, SearchResult[]>,
   limit: number,
-  options: { confidenceWeight?: number; now?: Date } = {},
+  options: { confidenceWeight?: number; usageWeight?: number; now?: Date } = {},
 ): RankedResult[] {
   const fused = new Map<string, RankedResult>();
   const weight = options.confidenceWeight === undefined
@@ -147,7 +133,7 @@ export function fuseRankedResults(
       const rank = index + 1;
       const contribution = 1 / (RRF_K + rank);
       const score = result.score ?? 0;
-      const confidence = confidenceFor(candidate, now);
+      const confidence = confidenceFor(candidate, now, options.usageWeight);
       const existing = fused.get(result.id);
       if (!existing) {
         fused.set(result.id, {
@@ -221,6 +207,12 @@ export function createMemoryFanoutEndpoint(deps: MemoryFanoutDeps = {}) {
       byCollection[key] = toSearchResults(key, item.value.result);
     });
 
+    const results = fuseRankedResults(byCollection, limit, {
+      confidenceWeight: configuredConfidenceWeight,
+      now: deps.now?.(),
+    });
+    scheduleMemoryReinforcement(results, deps.reinforce);
+
     return {
       query: q,
       strategy: 'reciprocal_rank_fusion',
@@ -234,12 +226,9 @@ export function createMemoryFanoutEndpoint(deps: MemoryFanoutDeps = {}) {
         confidenceWeightSource: deps.confidenceWeight === undefined ? rerankConfig.source : 'injected',
         confidenceSource: rerankConfig.confidenceSource,
       },
-      results: fuseRankedResults(byCollection, limit, {
-        confidenceWeight: configuredConfidenceWeight,
-        now: deps.now?.(),
-      }),
+      results,
       errors,
-      cost: estimateCost(q, collections),
+      cost: estimateFanoutCost(q, collections),
     };
   }, {
     query: MemoryFanoutQuery,

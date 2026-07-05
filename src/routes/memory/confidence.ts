@@ -23,11 +23,24 @@ type MemoryConfidenceOptions = {
   mode?: ConfidenceMode;
   now?: Date;
   semanticScore?: number;
+  usageWeight?: number;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ANCHORED_HALF_LIFE_DAYS = 139;
 const UNVALIDATED_HALF_LIFE_DAYS = 30;
+const USAGE_WEIGHT_ENV = 'ORACLE_MEMORY_USAGE_CONFIDENCE_WEIGHT';
+export const DEFAULT_MEMORY_USAGE_CONFIDENCE_WEIGHT = 0.1;
+
+type Env = Record<string, string | undefined>;
+
+export type MemoryUsageConfidenceConfig = {
+  usageWeight: number;
+  defaultUsageWeight: number;
+  source: 'default' | 'env';
+  envKey?: typeof USAGE_WEIGHT_ENV;
+  acceptedRange: { min: 0; max: 0.1 };
+};
 
 export function memoryConfidence(
   memory: MemoryRecord,
@@ -45,7 +58,10 @@ export function memoryConfidence(
   const usageCount = safeUsageCount(memory.usageCount);
   const lastAccessedAgeDays = memory.lastAccessedAt ? optionalDaysSince(memory.lastAccessedAt, now) : undefined;
   const usage = usageSignal(usageCount, lastAccessedAgeDays);
-  const score = round(clamp((match * 0.5) + (freshness * 0.3) + (provenance * 0.2) + (usage * 0.1)));
+  const usageWeight = options.usageWeight === undefined
+    ? memoryUsageConfidenceWeight()
+    : clampMemoryUsageConfidenceWeight(options.usageWeight);
+  const score = round(clamp((match * 0.5) + (freshness * 0.3) + (provenance * 0.2) + (usage * usageWeight)));
 
   return {
     score,
@@ -71,6 +87,27 @@ export const MEMORY_CONFIDENCE_STRATEGY = {
   signals: ['match_score', 'freshness_decay', 'source', 'tags', 'title', 'usage_count', 'last_accessed_at'],
 };
 
+export function memoryUsageConfidenceConfig(env: Env = process.env): MemoryUsageConfidenceConfig {
+  const configured = filled(env[USAGE_WEIGHT_ENV]);
+  return {
+    usageWeight: clampMemoryUsageConfidenceWeight(configured ? env[USAGE_WEIGHT_ENV] : undefined),
+    defaultUsageWeight: DEFAULT_MEMORY_USAGE_CONFIDENCE_WEIGHT,
+    source: configured ? 'env' : 'default',
+    envKey: configured ? USAGE_WEIGHT_ENV : undefined,
+    acceptedRange: { min: 0, max: 0.1 },
+  };
+}
+
+export function memoryUsageConfidenceWeight(env: Env = process.env): number {
+  return memoryUsageConfidenceConfig(env).usageWeight;
+}
+
+export function clampMemoryUsageConfidenceWeight(raw: string | number | undefined): number {
+  const parsed = Number.parseFloat(String(raw ?? DEFAULT_MEMORY_USAGE_CONFIDENCE_WEIGHT));
+  if (!Number.isFinite(parsed)) return DEFAULT_MEMORY_USAGE_CONFIDENCE_WEIGHT;
+  return Math.max(0, Math.min(0.1, parsed));
+}
+
 function daysSince(value: string, now: Date): number {
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) return 0;
@@ -80,6 +117,10 @@ function daysSince(value: string, now: Date): number {
 function optionalDaysSince(value: string, now: Date): number | undefined {
   const timestamp = Date.parse(value);
   return Number.isFinite(timestamp) ? Math.max(0, (now.getTime() - timestamp) / DAY_MS) : undefined;
+}
+
+function filled(value?: string): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 function safeUsageCount(value: unknown): number {
