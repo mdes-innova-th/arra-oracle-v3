@@ -57,7 +57,6 @@ beforeAll(async () => {
   const { createMemoryFanoutEndpoint } = await import('../../src/routes/memory/fanout.ts');
   fanoutFetch = createApiVersionedFetch(createTenantFetch((req) => new Elysia({ prefix: '/api' }).use(createMemoryFanoutEndpoint({
     models: () => ({ eval: { collection: 'eval', model: 'eval' } }),
-    confidenceWeight: 0,
     connect: async () => ({ query: async (q) => fanoutResult(q) }),
   })).handle(req)));
   seed();
@@ -71,7 +70,7 @@ afterAll(() => {
 });
 
 describe('Phase 1 entity golden eval baseline', () => {
-  test('current /api/search and /api/ask capture exact and bigram entity boosts', async () => {
+  test('current /api/search, /api/ask, and fanout capture exact and bigram entity boosts', async () => {
     for (const key of ['exact', 'bigram'] as CaseKey[]) {
       const item = cases[key] as ReturnType<typeof pair>;
       const q = `${item.queryEntity} ${item.anchor}`;
@@ -79,16 +78,16 @@ describe('Phase 1 entity golden eval baseline', () => {
       const ask = await askJson(q);
       expect(ask.citations[0]).toMatchObject({ id: item.linked, index: 1 });
       expect(ask.sources[0].entityMatches).toContain(item.entity);
-      expect(ids(await fanout(q))).toEqual([item.plain, item.linked]);
+      expect(ids(await fanout(q))).toEqual([item.linked, item.plain]);
     }
   });
 
-  test('acronym alias is boosted in /api/search and /api/ask but not fanout', async () => {
+  test('acronym alias is boosted in /api/search, /api/ask, and fanout', async () => {
     const item = cases.alias;
     const q = `${item.queryEntity} ${item.anchor}`;
     expect(ids(await search(q))).toEqual([item.linked, item.plain]);
     expect((await askJson(q)).citations.map((hit) => hit.id)).toEqual([item.linked, item.plain]);
-    expect(ids(await fanout(q))).toEqual([item.plain, item.linked]);
+    expect(ids(await fanout(q))).toEqual([item.linked, item.plain]);
   });
 
   test('tenant isolation blocks cross-tenant entity matches in search, ask, and fanout', async () => {
