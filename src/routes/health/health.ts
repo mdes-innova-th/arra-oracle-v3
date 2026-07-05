@@ -13,6 +13,8 @@ import { sandboxLabel } from '../../runtime/sandbox-label.ts';
 import { healthRollupStatus } from './rollup.ts';
 import { buildHealthSubsystems, drainingSubsystems, rollupHealthStatus, type EmbeddingProviderProbe, type EmbeddingProviderSelection } from './subsystems.ts';
 import { sleepConsolidationStatus } from '../../workers/sleep-consolidation.ts';
+import { entityBackfillStatus } from '../../workers/entity-backfill.ts';
+import { readEntityCoverageStats, type EntityCoverageStats } from '../../search/entity-coverage.ts';
 import pkg from '../../../package.json' with { type: 'json' };
 
 type VectorHealth = Awaited<ReturnType<typeof readVectorBackendHealth>>;
@@ -44,6 +46,7 @@ export interface HealthEndpointOptions {
   diskPath?: string;
   diskUsage?: () => DiskHealth;
   memoryUsage?: () => NodeJS.MemoryUsage;
+  entityCoverage?: () => EntityCoverageStats;
 }
 
 function errorMessage(error: unknown): string {
@@ -122,10 +125,11 @@ export function createHealthEndpoint(options: HealthEndpointOptions = {}) {
       : getVectorRuntimeStatus());
     const serviceUptime = Math.round(uptimeSeconds * 1000) / 1000;
     const vectorIsAvailable = vectorAvailable(vectorRuntime, vector, vectorServer);
+    const entityCoverage = options.entityCoverage?.() ?? readEntityCoverageStats();
     const subsystems = await buildHealthSubsystems({
       dbStatus, vector, vectorServer, vectorRuntime, pluginStatus, pluginCount,
       toolCount, uptimeSeconds: serviceUptime, embeddingProviders: options.embeddingProviders,
-      embeddingProviderSelection: options.embeddingProviderSelection,
+      embeddingProviderSelection: options.embeddingProviderSelection, entityCoverage,
     });
     const healthStatus = rollupHealthStatus(subsystems);
 
@@ -152,6 +156,7 @@ export function createHealthEndpoint(options: HealthEndpointOptions = {}) {
       vector,
       vectorServer,
       memory: { fanoutReranking: memoryConfidenceRerankConfig(), consolidationWorker: sleepConsolidationStatus() },
+      entities: { coverage: entityCoverage, backfillWorker: entityBackfillStatus() },
       mcp: { toolCount },
       plugins: { count: pluginCount, status: pluginStatus, items: pluginItems },
       subsystems,
