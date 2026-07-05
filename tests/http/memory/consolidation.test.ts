@@ -18,8 +18,12 @@ const { auditLog } = await import('../../../src/storage/audit-log.ts');
 const { createApiVersionedFetch } = await import('../../../src/middleware/api-version.ts');
 const { createTenantFetch, TENANT_HEADER } = await import('../../../src/middleware/tenant.ts');
 const { createMemoryConsolidationRoutes } = await import('../../../src/routes/memory/consolidation.ts');
+const { clearConsolidationQueueForTests, queueConsolidationSuggestions } = await import('../../../src/workers/consolidation-queue.ts');
 
-type PendingBody = { suggestions: Array<{ id: string; oldId: string; newId: string; tenantId: string; confidence: number }> };
+type PendingBody = { suggestions: Array<{
+  id: string; oldId: string; newId: string; tenantId: string; confidence: number;
+  source: string; model?: string; reason: string; metrics?: { cosine: number; ftsOverlap: number };
+}> };
 type AuditRow = { who: string; what: string; when: number };
 
 const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -30,6 +34,8 @@ const ids = {
   aNew: `approve-new-${stamp}`,
   rOld: `reject-old-${stamp}`,
   rNew: `reject-new-${stamp}`,
+  llmOld: `llm-old-${stamp}`,
+  llmNew: `llm-new-${stamp}`,
   bOld: `tenant-b-old-${stamp}`,
   bNew: `tenant-b-new-${stamp}`,
 };
@@ -71,11 +77,18 @@ function addDoc(id: string, tenantId: string, phrase: string, updatedAt: number)
 }
 
 function seedFixtures() {
+  clearConsolidationQueueForTests();
   addTenant(tenantA);
   addTenant(tenantB);
   addPair(ids.aOld, ids.aNew, tenantA, 'alpha approve governance queue duplicate canonical memory review supersede human control');
   addPair(ids.rOld, ids.rNew, tenantA, 'beta reject governance queue duplicate canonical memory review supersede human control');
+  addPair(ids.llmOld, ids.llmNew, tenantA, 'delta llm queue duplicate canonical memory review supersede human control');
   addPair(ids.bOld, ids.bNew, tenantB, 'gamma tenant isolation queue duplicate canonical memory review supersede human control');
+  queueConsolidationSuggestions([{
+    oldId: ids.llmOld, newId: ids.llmNew, tenantId: tenantA, cosine: 0.82, ftsOverlap: 0.74,
+    oldConfidence: 0.58, newConfidence: 0.93, queuedAt: now, source: 'sleep-time-llm',
+    model: 'mock-llm', similarity: 0.82, reason: 'sleep-time LLM SUPERSEDE-suggest (model=mock-llm): corrected memory fact',
+  }]);
 }
 
 async function json<T>(res: Response): Promise<T> {
@@ -94,6 +107,7 @@ function audits(type: 'approve' | 'reject'): AuditRow[] {
 seedFixtures();
 
 afterAll(() => {
+  clearConsolidationQueueForTests();
   db.delete(oracleDocuments).where(inArray(oracleDocuments.id, Object.values(ids))).run();
   dbMod.closeDb();
   if (previousData === undefined) delete process.env.ORACLE_DATA_DIR;
@@ -110,8 +124,25 @@ test('GET /api/v1/memory/consolidation/pending lists tenant-scoped supersede sug
 
   expect(response.status).toBe(200);
   expect(approve).toMatchObject({ oldId: ids.aOld, newId: ids.aNew, tenantId: tenantA });
+  expect(approve).toMatchObject({ source: 'similarity-sweep' });
   expect(approve!.confidence).toBeGreaterThan(0.9);
   expect(suggestion(body, ids.bOld)).toBeUndefined();
+});
+
+test('GET /api/v1/memory/consolidation/suggestions preserves queued provenance', async () => {
+  const response = await request(tenantA, '/api/v1/memory/consolidation/suggestions?limit=10');
+  const body = await json<PendingBody>(response);
+  const item = suggestion(body, ids.llmOld);
+
+  expect(response.status).toBe(200);
+  expect(item).toMatchObject({
+    oldId: ids.llmOld,
+    newId: ids.llmNew,
+    source: 'sleep-time-llm',
+    model: 'mock-llm',
+    metrics: { cosine: 0.82, ftsOverlap: 0.74 },
+  });
+  expect(item!.reason).toContain('corrected memory fact');
 });
 
 test('POST /api/v1/memory/consolidation/:id/approve applies supersede and audits reviewer', async () => {
