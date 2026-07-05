@@ -15,6 +15,7 @@ import { PluginsPage } from './pages/PluginsPage';
 import { CanvasAliasPage } from './pages/CanvasAliasPage';
 import { CanvasPluginsPage } from './pages/CanvasPluginsPage';
 import { ActivityPage } from './pages/ActivityPage';
+import { AskPage } from './pages/AskPage';
 import { SearchPage } from './pages/SearchPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { StatusPage } from './pages/StatusPage';
@@ -40,6 +41,7 @@ export const frontendRoutes = [
   '/canvas/plugins',
   '/metrics',
   '/search',
+  '/ask',
   '/export',
   '/feed',
   '/forum',
@@ -116,6 +118,7 @@ export function DashboardRoutes({
       <Route path="/canvas/plugins" element={<CanvasPluginsPage />} />
       <Route path="/metrics" element={<MetricsPage metrics={metrics} loading={isRouteLoading(states.metrics)} />} />
       <Route path="/search" element={<SearchPage />} />
+      <Route path="/ask" element={<AskPage />} />
       <Route path="/export" element={<ExportApp />} />
       <Route path="/feed" element={<FeedPage />} />
       <Route path="/forum" element={<ForumPage />} />

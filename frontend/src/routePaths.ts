@@ -29,6 +29,12 @@ export function menuSearchPath(query: string): string {
   return `/search?${new URLSearchParams({ q })}`;
 }
 
+export function askPath(question = ''): string {
+  const q = question.trim();
+  if (!q) return '/ask';
+  return `/ask?${new URLSearchParams({ q })}`;
+}
+
 export function pluginInventoryPath(filters: { q?: string; surface?: string; visibility?: string } = {}): string {
   const params = new URLSearchParams();
   const q = trimmed(filters.q);

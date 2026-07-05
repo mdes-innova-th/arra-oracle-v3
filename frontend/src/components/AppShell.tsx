@@ -62,6 +62,7 @@ export function AppShell({
     { to: '/canvas?plugin=wave', label: 'Canvas App', description: 'Studio alias for canvas.buildwithoracle.com' },
     { to: '/canvas/plugins', label: 'Canvas Plugins', description: 'Canvas metadata from /api/plugins?kind=canvas' },
     { to: '/search', label: 'Search', description: 'Full-text menu search' },
+    { to: '/ask', label: 'Ask', description: 'Cited RAG answers from /api/v1/ask' },
     { to: '/export', label: 'Export App', description: 'Legacy v2 JSON/Markdown backups' },
     { to: '/feed', label: 'Feed', description: 'DB-backed document feed from /api/list' },
     { to: '/forum', label: 'Forum', description: 'Operational threads from /api/threads' },

@@ -40,6 +40,7 @@ describe('frontend router', () => {
       '/canvas/plugins',
       '/metrics',
       '/search',
+      '/ask',
       '/export',
       '/feed',
       '/forum',
@@ -75,6 +76,7 @@ describe('frontend router', () => {
     expect(htmlAt('/metrics')).toContain('42');
     expect(htmlAt('/metrics')).toContain('Memory usage');
     expect(htmlAt('/search')).toContain('Full-text menu search');
+    expect(htmlAt('/ask')).toContain('Ask the Oracle');
     expect(htmlAt('/export')).toContain('Export app');
     expect(htmlAt('/feed')).toContain('Document feed');
     expect(htmlAt('/forum')).toContain('Forum threads');
