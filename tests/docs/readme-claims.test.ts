@@ -9,6 +9,13 @@ const repoRoot = process.cwd();
 const readme = readFileSync('README.md', 'utf8');
 const apiDoc = readFileSync('docs/API.md', 'utf8');
 const architectureDoc = readFileSync('docs/architecture.md', 'utf8');
+const envKeys = [
+  'ARRA_PLUGIN_HOT_RELOAD', 'NODE_ENV', 'ORACLE_DATA_DIR', 'ORACLE_DB_PATH',
+  'ORACLE_EMBEDDER', 'ORACLE_FILE_WATCHER', 'ORACLE_GATEWAY_HOT_RELOAD',
+  'ORACLE_REPO_ROOT', 'ORACLE_TOOL_GROUPS_HOT_RELOAD',
+  'ORACLE_VECTOR_HEALTH_TIMEOUT', 'VECTOR_URL',
+] as const;
+const originalEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
 let scratch = '';
 let closeDb: (() => void) | undefined;
 let fetchClaim: ((request: Request) => Promise<Response> | Response) | undefined;
@@ -81,6 +88,7 @@ beforeAll(async () => {
 afterAll(() => {
   closeDb?.();
   if (scratch) rmSync(scratch, { recursive: true, force: true });
+  for (const key of envKeys) restoreEnv(key, originalEnv[key]);
 });
 
 describe('README/docs advertised claims', () => {
@@ -226,4 +234,9 @@ function emptyRuntime() {
     servers: [],
     pluginRegistry: () => [],
   } as any;
+}
+
+function restoreEnv(key: string, value: string | undefined) {
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
 }
