@@ -11,6 +11,7 @@ import { rankMemories } from './rank.ts';
 import { createMemoryStatsEndpoint } from './stats.ts';
 import { createMemoryConsolidationRoutes } from './consolidation.ts';
 import { candidatePoolSize } from '../../search/retrieve-depth.ts';
+import { asOfResponse } from '../search/asof.ts';
 
 export function createMemoryRoutes(
   store: MemoryStore = memoryStore,
@@ -63,7 +64,7 @@ export function createMemoryRoutes(
       try {
         const candidates = store.recall(query.q ?? '', limit, { asOf: query.asOf, includeCold });
         const items = rankMemories(candidates, { mode: 'keyword', asOf: query.asOf });
-        return { query: query.q ?? '', asOf: isoAsOf(query.asOf), total: items.length, confidence: MEMORY_CONFIDENCE_STRATEGY, items };
+        return { query: query.q ?? '', ...asOfResponse(msAsOf(query.asOf)), total: items.length, confidence: MEMORY_CONFIDENCE_STRATEGY, items };
       } catch (error) {
         return invalidAsOf(set, error);
       }
@@ -87,7 +88,7 @@ export function createMemoryRoutes(
       }
       const limit = parseMemoryLimit(query.limit);
       try {
-        isoAsOf(query.asOf);
+        msAsOf(query.asOf);
         const candidateLimit = candidatePoolSize(limit);
         const hits = await vectorIndex.search(query.q, candidateLimit);
         const records = store.getByIds(hits.map((hit) => hit.memoryId), { asOf: query.asOf });
@@ -101,7 +102,7 @@ export function createMemoryRoutes(
           entityScore: (memory) => entityScores.get(memory.id),
         }).slice(0, limit);
         return {
-          success: true, query: query.q, asOf: isoAsOf(query.asOf), total: results.length,
+          success: true, query: query.q, ...asOfResponse(msAsOf(query.asOf)), total: results.length,
           confidence: MEMORY_CONFIDENCE_STRATEGY,
           ranking: { strategy: 'valid_time_confidence_heat_entity_match', candidatePool: candidateLimit },
           results,
@@ -117,8 +118,8 @@ export function createMemoryRoutes(
     });
 }
 
-function isoAsOf(value: string | undefined): string | undefined {
-  return value ? new Date(parseValidTime(value)!).toISOString() : undefined;
+function msAsOf(value: string | undefined): number | undefined {
+  return value ? parseValidTime(value) : undefined;
 }
 
 function invalidAsOf(set: { status?: number | string }, error: unknown) {

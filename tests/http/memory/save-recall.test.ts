@@ -77,6 +77,12 @@ test('POST /api/v1/memory/save persists a memory, indexes it, and recall finds i
   expect(body.items[0]).toMatchObject({ id: saved.memory.id, content: `Read the ${unique} context before coding.` });
   expect(body.confidence).toMatchObject({ stored: false, strategy: 'query-time-confidence' });
   expect(body.items[0].confidence).toMatchObject({ label: 'high' });
+
+  const historical = await json(await fetcher(new Request(
+    `http://local/api/v1/memory/recall?q=${unique}&limit=5&asOf=2100-01-01T00:00:00.000Z`,
+  )));
+  expect(historical.asOf).toBe('2100-01-01T00:00:00.000Z');
+  expect(historical.asOfSupportedEndpoints).toContain('/api/memory/recall');
 });
 
 test('GET /api/v1/memory/search returns vector similarity hits enriched from SQLite', async () => {
@@ -98,6 +104,11 @@ test('GET /api/v1/memory/search returns vector similarity hits enriched from SQL
   expect(body.results[0]).toMatchObject({ id: saved.memory.id, score: 1, vectorId: `memory:${saved.memory.id}` });
   expect(body.confidence).toMatchObject({ stored: false, strategy: 'query-time-confidence' });
   expect(body.results[0].confidence.reasons).toContain('semantic_match');
+
+  const historical = await json(await fetcher(new Request(
+    `http://local/api/v1/memory/search?q=${phrase}&limit=3&asOf=2100-01-01T00:00:00.000Z`,
+  )));
+  expect(historical.asOfSupportedEndpoints).toContain('/api/memory/search');
 });
 
 test('memory APIs isolate persisted memories by tenant context', async () => {

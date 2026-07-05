@@ -42,7 +42,6 @@ describe("HTTP contract: auth / settings / feed", () => {
   beforeAll(async () => {
     dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "oracle-http-test-"));
     const cwd = import.meta.dir.replace(/\/tests\/http$/, "");
-    const dbPath = path.join(dataDir, "oracle.db");
     serverProcess = Bun.spawn(["bun", "run", "src/server.ts"], {
       cwd,
       stdout: "pipe",
@@ -51,17 +50,7 @@ describe("HTTP contract: auth / settings / feed", () => {
         ...process.env,
         ORACLE_PORT: String(PORT),
         ORACLE_DATA_DIR: dataDir,
-        ORACLE_DB_PATH: dbPath,
         ORACLE_CHROMA_TIMEOUT: "3000",
-        ORACLE_EMBEDDER: "none",
-        ORACLE_VECTOR_DB: "sqlite-vec",
-        ORACLE_FILE_WATCHER: "0",
-        MAW_JS_URL: "http://127.0.0.1:9",
-        VECTOR_URL: "",
-        ARRA_API_KEY: "",
-        ARRA_API_TOKEN: "",
-        ORACLE_TENANT_TOKENS: "",
-        ORACLE_TENANT_API_KEYS: "",
       },
     });
     const ready = await waitForServer();

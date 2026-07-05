@@ -227,6 +227,7 @@ export function createMemoryFanoutEndpoint(deps: MemoryFanoutDeps = {}) {
       collections,
       totalCollections: collections.length,
       ranking: {
+        strategy: rerankConfig.strategy,
         rrfK: RRF_K,
         confidenceWeight: configuredConfidenceWeight,
         confidenceRerankingEnabled: configuredConfidenceWeight > 0,

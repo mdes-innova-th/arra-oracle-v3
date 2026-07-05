@@ -45,13 +45,9 @@ async function createLearning(id: string, pattern: string): Promise<void> {
   expect(res.status).toBe(200);
 }
 
-let seedCounter = 0;
-async function seedLearnings(): Promise<{ alpha: string; bravo: string }> {
-  seedCounter += 1;
-  const ids = { alpha: `export-doc-alpha-${seedCounter}`, bravo: `export-doc-bravo-${seedCounter}` };
-  await createLearning(ids.alpha, 'Alpha export integration body');
-  await createLearning(ids.bravo, 'Bravo export integration body');
-  return ids;
+async function seedLearnings(): Promise<void> {
+  await createLearning('export-doc-alpha', 'Alpha export integration body');
+  await createLearning('export-doc-bravo', 'Bravo export integration body');
 }
 
 interface ExportJobResponse {
@@ -78,6 +74,8 @@ function exportCollection(format: string, extra: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
+  const psiDir = join(root, 'psi');
+  if (existsSync(psiDir)) rmSync(psiDir, { recursive: true });
   dbMod.db.delete(dbMod.exportJobs).run();
   dbMod.db.delete(dbMod.learnLog).run();
   dbMod.db.delete(dbMod.oracleDocuments).run();
@@ -137,9 +135,9 @@ describe('POST /api/v1/export/app/run', () => {
   });
 
   test('includes graph relationships when requested', async () => {
-    const ids = await seedLearnings();
-    const update = await request('PUT', `/api/v1/learn/${ids.alpha}`, {
-      supersededBy: ids.bravo,
+    await seedLearnings();
+    const update = await request('PUT', '/api/v1/learn/export-doc-alpha', {
+      supersededBy: 'export-doc-bravo',
       supersededReason: 'integration graph edge',
     });
     expect(update.status).toBe(200);
@@ -151,8 +149,8 @@ describe('POST /api/v1/export/app/run', () => {
     expect(body.graph.relationships).toEqual(expect.arrayContaining([
       expect.objectContaining({
         type: 'document_superseded_by',
-        from: ids.alpha,
-        to: ids.bravo,
+        from: 'export-doc-alpha',
+        to: 'export-doc-bravo',
       }),
     ]));
   });

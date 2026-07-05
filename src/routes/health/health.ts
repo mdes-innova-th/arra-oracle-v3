@@ -116,7 +116,9 @@ export function createHealthEndpoint(options: HealthEndpointOptions = {}) {
     const pluginCount = options.pluginCount ?? (pluginItems.length || installedPluginCount());
     const pluginStatus = pluginItems.some((plugin) => plugin.status === 'degraded') ? 'degraded' : 'ok';
     const toolCount = mcpTools.length + (options.pluginMcpToolCount ?? 0);
-    const vectorRuntime = options.vectorRuntime?.() ?? getVectorRuntimeStatus();
+    const vectorRuntime = options.vectorRuntime?.() ?? (options.vectorHealth
+      ? { vectorMode: 'embedded' as const }
+      : getVectorRuntimeStatus());
     const serviceUptime = Math.round(uptimeSeconds * 1000) / 1000;
     const vectorIsAvailable = vectorAvailable(vectorRuntime, vector, vectorServer);
     const subsystems = await buildHealthSubsystems({

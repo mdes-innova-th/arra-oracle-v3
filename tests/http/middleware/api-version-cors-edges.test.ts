@@ -14,21 +14,22 @@ import {
 const STUDIO = 'https://studio.example';
 
 describe('api version middleware redirects and rewrites edge paths', () => {
-  test('allowed-origin legacy API request rewrites in place for browser callers', async () => {
+  test('legacy API redirect is permanent, preserves query, and skips the app', async () => {
     let calls = 0;
     const fetcher = createApiVersionedFetch(() => {
       calls += 1;
-      return new Response('ok');
+      return new Response('unexpected');
     });
 
     const res = await fetcher(new Request('http://local/api/search?q=oracle&next=%2Fapi%2Fdocs', {
       headers: { origin: 'http://localhost:3000' },
     }));
 
-    expect(res.status).toBe(200);
-    expect(res.headers.get('location')).toBeNull();
+    expect(res.status).toBe(308);
+    expect(res.headers.get('location')).toBe('http://local/api/v1/search?q=oracle&next=%2Fapi%2Fdocs');
     expect(res.headers.get(API_VERSION_HEADER)).toBe('v1');
-    expect(calls).toBe(1);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:3000');
+    expect(calls).toBe(0);
   });
 
   test('versioned request rewrites internally while preserving the public path', async () => {
@@ -46,15 +47,35 @@ describe('api version middleware redirects and rewrites edge paths', () => {
     expect(body).toEqual({ routePath: '/api/search', publicPath: '/api/v1/search' });
   });
 
-  test('health subpaths stay unredirected for infrastructure probes', async () => {
-    const app = new Elysia().get('/api/health/deep', () => ({ status: 'ok' }));
-    const res = await createApiVersionedFetch((request) => app.handle(request))(
+  test('only exact health stays unredirected for infrastructure probes', async () => {
+    const app = new Elysia().get('/api/health', () => ({ status: 'ok' }));
+    const fetcher = createApiVersionedFetch((request) => app.handle(request));
+
+    const health = await fetcher(new Request('http://local/api/health'));
+    const deep = await fetcher(
       new Request('http://local/api/health/deep'),
     );
 
+    expect(health.status).toBe(200);
+    expect(health.headers.get('location')).toBeNull();
+    expect(await health.json()).toEqual({ status: 'ok' });
+    expect(deep.status).toBe(308);
+    expect(deep.headers.get('location')).toBe('http://local/api/v1/health/deep');
+  });
+
+  test('legacy hosted Studio origins keep old unversioned API calls direct', async () => {
+    const app = new Elysia().get('/api/list', () => ({ success: true, results: [] }));
+    const res = await createApiVersionedFetch((request) => app.handle(request))(
+      new Request('http://local/api/list?limit=50', {
+        headers: { origin: 'https://feed.buildwithoracle.com' },
+      }),
+    );
+    const body = await res.json() as { success: boolean; results: unknown[] };
+
     expect(res.status).toBe(200);
     expect(res.headers.get('location')).toBeNull();
-    expect(await res.json()).toEqual({ status: 'ok' });
+    expect(res.headers.get(API_VERSION_HEADER)).toBe('v1');
+    expect(body).toEqual({ success: true, results: [] });
   });
 });
 

@@ -21,6 +21,7 @@ import { exportFileInventory } from './inventory.ts';
 import { exportBundleReadme } from './bundle-readme.ts';
 import { selectExportTables, shouldExportDocuments } from './collections.ts';
 import { writeStandaloneBackupDump } from './backup.ts';
+import { isMissingTableError } from '../../src/db/errors.ts';
 
 type ExportTable = Parameters<typeof getTableName>[0];
 type Progress = (message: string, event?: ExportProgressEvent) => void;
@@ -163,7 +164,6 @@ function selectRows(connection: DatabaseConnection, table: ExportTable): ExportR
   try { return (connection.db as any).select().from(table).all() as ExportRecord[]; }
   catch (error) { if (isMissingTableError(error)) return []; throw error; }
 }
-function isMissingTableError(error: unknown): boolean { return String(error instanceof Error ? error.message : error).toLowerCase().includes('no such table:'); }
 
 function reportProgress(progress: Progress, event: Omit<ExportProgressEvent, 'percent'>): void {
   const percent = Math.round((event.current / event.total) * 100);

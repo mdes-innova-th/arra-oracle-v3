@@ -35,6 +35,7 @@ test('VectorServiceRegistry registers and discovers configured vector backends',
 
   expect(await registry.discover()).toEqual([
     { kind: 'vector', name: 'lancedb', type: 'builtin', endpoint: undefined, capabilities: undefined },
+    { kind: 'vector', name: 'sqlite-vec', type: 'builtin', endpoint: undefined, capabilities: undefined },
     {
       kind: 'vector',
       name: 'turbovec',

@@ -5,7 +5,9 @@ import { currentTenantId, tenantDataPath, TENANT_HEADER } from '../../middleware
 import { feedTimestampMs, normalizeFeedLimit, parseLocalEvent, parseMawEvent, type FeedEvent } from '../../feed/events.ts';
 import { FeedQuery } from './model.ts';
 
-function mawJsUrl(): string { return process.env.MAW_JS_URL || 'http://localhost:3456'; }
+function mawJsUrl(): string {
+  return (process.env.MAW_JS_URL || 'http://localhost:3456').replace(/\/$/, '');
+}
 
 export const listFeedRoute = new Elysia().get('/', async ({ query, set }) => {
   try {

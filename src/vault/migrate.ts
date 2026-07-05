@@ -34,6 +34,12 @@ function isProjectCategory(relativePath: string): boolean {
   return PROJECT_CATEGORIES.some((cat) => relativePath.startsWith(cat));
 }
 
+function sameFileContent(dest: string, source: string, content?: string): boolean {
+  if (!fs.existsSync(dest)) return false;
+  if (content !== undefined) return fs.readFileSync(dest, 'utf-8') === content;
+  return fs.readFileSync(dest).equals(fs.readFileSync(source));
+}
+
 interface RepoInfo { repoPath: string; project: string; fileCount: number }
 interface MigrateOptions { dryRun: boolean; symlink?: boolean; tenantId?: string }
 interface MigrateResult {
@@ -117,14 +123,16 @@ function migrate(opts: MigrateOptions): MigrateResult {
       if (path.basename(relativePath) === '.gitkeep') continue;
       const vaultRelPath = mapToVaultPath(relativePath, project);
       const dest = path.join(vaultPath, vaultRelPath);
+      const content = fullPath.endsWith('.md') && isProjectCategory(relativePath)
+        ? ensureFrontmatterProject(fs.readFileSync(fullPath, 'utf-8'), project)
+        : undefined;
+
+      if (sameFileContent(dest, fullPath, content)) continue;
 
       if (!dryRun) {
         fs.mkdirSync(path.dirname(dest), { recursive: true });
-        if (fullPath.endsWith('.md') && isProjectCategory(relativePath)) {
-          fs.writeFileSync(dest, ensureFrontmatterProject(fs.readFileSync(fullPath, 'utf-8'), project));
-        } else {
-          fs.copyFileSync(fullPath, dest);
-        }
+        if (content !== undefined) fs.writeFileSync(dest, content);
+        else fs.copyFileSync(fullPath, dest);
       }
       fileCount++;
     }

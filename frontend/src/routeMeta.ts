@@ -103,6 +103,7 @@ export function routeMeta(pathname: string, search = ''): RouteMeta {
   if (pathname === '/canvas/plugins') return base('Canvas plugins', 'Canvas', 'Canvas plugin registry and standalone status.', [{ label: 'Canvas plugins' }]);
   if (pathname === '/metrics') return base('Runtime metrics', 'Metrics', 'Runtime counters from /api/v1/metrics.', [{ label: 'Metrics' }]);
   if (pathname === '/search') return base('Search', 'Search', 'Search menu, plugin, and MCP tool surfaces.', [{ label: 'Search' }]);
+  if (pathname === '/ask') return base('Studio Ask', 'Ask', 'Cited RAG answers from /api/v1/ask.', [{ label: 'Studio Ask' }]);
   if (pathname === '/export') return base('Export app', 'Export', 'Connect to an old Oracle v2 backend and download JSON, CSV, or Markdown backups.', [{ label: 'Export app' }]);
   if (pathname === '/feed') return base('Document feed', 'Feed', 'DB-backed document feed from /api/list, independent of vector collections.', [{ label: 'Feed' }]);
   if (pathname === '/forum') return base('Forum threads', 'Forum', 'Operational thread list from /api/threads.', [{ label: 'Forum' }]);
