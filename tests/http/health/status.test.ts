@@ -5,7 +5,9 @@ import { createHealthRoutes } from '../../../src/routes/health/index.ts';
 
 test('GET /api/health reports uptime, DB, vector, MCP, and plugin status', async () => {
   const previous = saveEmbedderEnv();
+  const previousWorker = process.env.ORACLE_CONSOLIDATION_WORKER;
   process.env.ORACLE_EMBEDDER = 'none';
+  delete process.env.ORACLE_CONSOLIDATION_WORKER;
   delete process.env.ORACLE_EMBEDDING_PROVIDER;
   delete process.env.ORACLE_EMBEDDER_BACKEND;
   delete process.env.EMBEDDER_TYPE;
@@ -45,6 +47,12 @@ test('GET /api/health reports uptime, DB, vector, MCP, and plugin status', async
     expect(body.memory.fanoutReranking.enabled).toBe(body.memory.fanoutReranking.confidenceWeight > 0);
     expect(body.memory.fanoutReranking.confidenceWeight).toBeGreaterThanOrEqual(0);
     expect(body.memory.fanoutReranking.confidenceWeight).toBeLessThanOrEqual(1);
+    expect(body.memory.consolidationWorker).toMatchObject({
+      enabled: false,
+      running: false,
+      similarityThreshold: 0.95,
+    });
+    expect(body.memory.consolidationWorker.disabledReason).toContain('ORACLE_CONSOLIDATION_WORKER=1');
     expect(body.mcpToolCount).toBe(mcpTools.length + 2);
     expect(body.mcp.toolCount).toBe(mcpTools.length + 2);
     expect(body.pluginCount).toBe(5);
@@ -53,6 +61,7 @@ test('GET /api/health reports uptime, DB, vector, MCP, and plugin status', async
     expect(body.version).toBeTypeOf('string');
     expect(typeof body.uptime).toBe('number');
   } finally {
+    restoreEnv('ORACLE_CONSOLIDATION_WORKER', previousWorker);
     restoreEmbedderEnv(previous);
   }
 });

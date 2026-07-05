@@ -4,6 +4,7 @@ import { activeTenantId, runWithTenant } from '../../middleware/tenant.ts';
 import { auditLog } from '../../storage/audit-log.ts';
 import { runSupersede } from '../../tools/supersede.ts';
 import { runConsolidationWorker, type ConsolidationPlan } from '../../workers/consolidation.ts';
+import { listQueuedConsolidationPlans } from '../../workers/consolidation-queue.ts';
 import { parseMemoryLimit } from './model.ts';
 
 type DocPreview = { id: string; title: string; sourceFile: string; type: string; content: string };
@@ -80,10 +81,17 @@ async function pendingSuggestions(limit: number, tenantId: string): Promise<Sugg
     logger: silentLogger,
   });
   const rejected = rejectedSuggestionIds(tenantId);
-  const docs = docsFor(result.plans, tenantId);
-  return result.plans
+  const plans = mergePlans(listQueuedConsolidationPlans(tenantId, limit), result.plans);
+  const docs = docsFor(plans, tenantId);
+  return plans
     .map((plan) => suggestionFromPlan(plan, docs))
     .filter((item) => !rejected.has(item.id));
+}
+
+function mergePlans(...groups: ConsolidationPlan[][]): ConsolidationPlan[] {
+  const byId = new Map<string, ConsolidationPlan>();
+  for (const plan of groups.flat()) byId.set(suggestionId(plan.oldId, plan.newId), plan);
+  return [...byId.values()];
 }
 
 function suggestionFromPlan(plan: ConsolidationPlan, docs: Map<string, DocPreview>): Suggestion {

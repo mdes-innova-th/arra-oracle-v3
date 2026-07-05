@@ -12,6 +12,7 @@ import type { UnifiedPluginStatus } from '../../plugins/unified-loader.ts';
 import { sandboxLabel } from '../../runtime/sandbox-label.ts';
 import { healthRollupStatus } from './rollup.ts';
 import { buildHealthSubsystems, drainingSubsystems, rollupHealthStatus, type EmbeddingProviderProbe, type EmbeddingProviderSelection } from './subsystems.ts';
+import { sleepConsolidationStatus } from '../../workers/sleep-consolidation.ts';
 import pkg from '../../../package.json' with { type: 'json' };
 
 type VectorHealth = Awaited<ReturnType<typeof readVectorBackendHealth>>;
@@ -150,7 +151,7 @@ export function createHealthEndpoint(options: HealthEndpointOptions = {}) {
       dbCheck: { ...dbStatus, path: DB_PATH },
       vector,
       vectorServer,
-      memory: { fanoutReranking: memoryConfidenceRerankConfig() },
+      memory: { fanoutReranking: memoryConfidenceRerankConfig(), consolidationWorker: sleepConsolidationStatus() },
       mcp: { toolCount },
       plugins: { count: pluginCount, status: pluginStatus, items: pluginItems },
       subsystems,
