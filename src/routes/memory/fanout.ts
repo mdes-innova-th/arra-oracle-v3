@@ -1,12 +1,15 @@
 import { Elysia } from 'elysia';
 import { sqlite } from '../../db/index.ts';
+import { parseAsOf } from '../../search/bitemporal.ts';
 import { attachSupersedeStatus, supersedeWarnings } from '../../search/supersede-status.ts';
 import type { SearchResult } from '../../server/types.ts';
 import { ensureVectorStoreConnected, getEmbeddingModels, type EmbeddingModelConfig } from '../../vector/factory.ts';
-import type { VectorQueryResult, VectorStoreAdapter } from '../../vector/types.ts';
+import type { VectorStoreAdapter } from '../../vector/types.ts';
+import { asOfResponse } from '../search/asof.ts';
 import { memoryConfidence, type MemoryConfidence } from './confidence.ts';
+import { fanoutVectorWhere, filterFanoutCandidates } from './fanout-filter.ts';
+import { toFanoutSearchResults, type FanoutSearchResult } from './fanout-results.ts';
 import { estimateFanoutCost } from './fanout-cost.ts';
-import { safeVectorDistance, scoreFromVectorDistance } from './fanout-score.ts';
 import { MemoryFanoutQuery, parseMemoryLimit } from './model.ts';
 import { scheduleMemoryReinforcement } from './reinforcement.ts';
 import { clampMemoryConfidenceWeight, memoryConfidenceRerankConfig, memoryFanoutConfidenceWeight } from './rerank-config.ts';
@@ -22,16 +25,6 @@ type MemoryFanoutDeps = {
   now?: () => Date;
 };
 
-type FanoutSearchResult = SearchResult & {
-  title?: string;
-  tags?: string[];
-  memorySource?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  usageCount?: number;
-  lastAccessedAt?: string;
-};
-
 type RankedResult = SearchResult & {
   fusedScore: number;
   rankingScore: number;
@@ -44,59 +37,6 @@ const RRF_K = 60;
 
 function sanitize(q: string): string {
   return q.replace(/<[^>]*>/g, '').replace(/[\x00-\x1f]/g, '').trim();
-}
-
-function text(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
-}
-
-function numberValue(value: unknown): number | undefined {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function dateText(value: unknown): string | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) return new Date(value).toISOString();
-  return text(value);
-}
-
-function textList(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
-  if (typeof value !== 'string' || !value.trim()) return [];
-  try {
-    const parsed = JSON.parse(value);
-    if (Array.isArray(parsed)) return textList(parsed);
-  } catch {}
-  return value.split(',').map((item) => item.trim()).filter(Boolean);
-}
-
-function toSearchResults(collection: string, result: VectorQueryResult): FanoutSearchResult[] {
-  return result.ids.map((id, index) => {
-    const metadata = result.metadatas?.[index] ?? {};
-    const distance = safeVectorDistance(result.distances?.[index]);
-    const tags = textList(metadata.tags).length ? textList(metadata.tags) : textList(metadata.concepts);
-    return {
-      id,
-      type: metadata.type ?? 'unknown',
-      content: result.documents?.[index] ?? '',
-      source_file: metadata.source_file ?? metadata.path ?? '',
-      concepts: textList(metadata.concepts),
-      source: 'vector',
-      score: scoreFromVectorDistance(distance),
-      distance,
-      model: collection,
-      title: text(metadata.title),
-      tags,
-      memorySource: text(metadata.source ?? metadata.memory_source ?? metadata.source_file ?? metadata.path),
-      createdAt: dateText(metadata.createdAt ?? metadata.created_at),
-      updatedAt: dateText(metadata.updatedAt ?? metadata.updated_at),
-      usageCount: numberValue(metadata.usageCount ?? metadata.usage_count),
-      lastAccessedAt: dateText(metadata.lastAccessedAt ?? metadata.last_accessed_at),
-      superseded_by: text(metadata.superseded_by ?? metadata.supersededBy),
-      superseded_at: dateText(metadata.superseded_at ?? metadata.supersededAt),
-      superseded_reason: text(metadata.superseded_reason ?? metadata.supersededReason),
-    };
-  });
 }
 
 function confidenceFor(result: FanoutSearchResult, now: Date, usageWeight?: number): MemoryConfidence {
@@ -188,8 +128,14 @@ export function createMemoryFanoutEndpoint(deps: MemoryFanoutDeps = {}) {
     const models = listModels();
     const collections = Object.keys(models);
     const limit = parseMemoryLimit(query.limit);
+    const asOf = parseAsOf(query.asOf);
+    if (!asOf.ok) {
+      set.status = 400;
+      return { error: asOf.error };
+    }
     const errors: Record<string, string> = {};
     const byCollection: Record<string, SearchResult[]> = {};
+    const where = fanoutVectorWhere();
     const rerankConfig = memoryConfidenceRerankConfig();
     const configuredConfidenceWeight = deps.confidenceWeight === undefined
       ? rerankConfig.confidenceWeight
@@ -197,7 +143,7 @@ export function createMemoryFanoutEndpoint(deps: MemoryFanoutDeps = {}) {
 
     const settled = await Promise.allSettled(collections.map(async (key) => {
       const store = await connect(key, models);
-      return { key, result: await store.query(q, limit) };
+      return { key, result: await store.query(q, limit, where) };
     }));
 
     settled.forEach((item, index) => {
@@ -206,7 +152,11 @@ export function createMemoryFanoutEndpoint(deps: MemoryFanoutDeps = {}) {
         errors[key] = item.reason instanceof Error ? item.reason.message : String(item.reason);
         return;
       }
-      byCollection[key] = toSearchResults(key, item.value.result);
+      byCollection[key] = filterFanoutCandidates(
+        sqlite,
+        toFanoutSearchResults(key, item.value.result),
+        asOf.value,
+      );
     });
 
     const results = fuseRankedResults(byCollection, limit, {
@@ -232,6 +182,7 @@ export function createMemoryFanoutEndpoint(deps: MemoryFanoutDeps = {}) {
       },
       results,
       ...(warnings.length ? { warnings } : {}),
+      ...asOfResponse(asOf.value),
       errors,
       cost: estimateFanoutCost(q, collections),
     };

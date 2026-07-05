@@ -41,6 +41,7 @@ export const MorningTapeQuery = t.Object({
 export const MemoryFanoutQuery = t.Object({
   q: t.Optional(t.String()),
   limit: t.Optional(t.String()),
+  asOf: t.Optional(t.String()),
 });
 
 export const MemoryTiersQuery = t.Object({
