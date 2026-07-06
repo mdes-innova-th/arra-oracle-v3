@@ -2,13 +2,14 @@ import { Elysia } from 'elysia';
 import { WebStandardStreamableHTTPServerTransport, type WebStandardStreamableHTTPServerTransportOptions } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
+import type { HttpOracleMcpServerOptions } from '../../mcp/http-server.ts';
 import { OracleMCPServer } from '../../mcp/server.ts';
+import { createHttpOracleMcpServer } from '../../mcp/http-server.ts';
 import { requireMcpBearerAuth } from '../../mcp/http-auth.ts';
-import { emptyHttpPluginRuntime, remoteHttpToolGroups } from '../../mcp/http-policy.ts';
 
-type Env = Record<string, string | undefined>;
 type Session = { transport: WebStandardStreamableHTTPServerTransport; oracle: OracleMCPServer };
-export type McpStreamableRoutesOptions = Pick<WebStandardStreamableHTTPServerTransportOptions, 'enableJsonResponse'> & { env?: Env };
+export type McpStreamableRoutesOptions =
+  Pick<WebStandardStreamableHTTPServerTransportOptions, 'enableJsonResponse'> & HttpOracleMcpServerOptions;
 
 export function createMcpStreamableRoutes(options: McpStreamableRoutesOptions = {}) {
   const manager = new McpHttpSessionManager(options);
@@ -47,7 +48,7 @@ class McpHttpSessionManager {
     session = { transport, oracle };
     transport.onclose = () => { if (transport.sessionId) void this.releaseSession(transport.sessionId, false); };
     try {
-      await (oracle as unknown as { server: { connect: (transport: WebStandardStreamableHTTPServerTransport) => Promise<void> } }).server.connect(transport);
+      await oracle.connect(transport);
       return await transport.handleRequest(request, { authInfo, parsedBody });
     } catch (error) {
       if (transport.sessionId) await this.releaseSession(transport.sessionId, true);
@@ -61,13 +62,7 @@ class McpHttpSessionManager {
   }
 
   private createOracleServer(): OracleMCPServer {
-    const env = this.options.env ?? process.env;
-    return new OracleMCPServer({
-      readOnly: env.ORACLE_READ_ONLY === 'true',
-      toolGroups: remoteHttpToolGroups(),
-      unifiedRuntime: emptyHttpPluginRuntime(),
-      installSignalHandlers: false,
-    });
+    return createHttpOracleMcpServer(this.options);
   }
 
   private async releaseSession(sessionId: string, closeTransport: boolean): Promise<void> {
