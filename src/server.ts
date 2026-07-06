@@ -63,7 +63,7 @@ import { sessionsRoutes } from './routes/sessions/index.ts';
 import { oldStudioCompatRoutes } from './routes/compat.ts';
 import { vaultRoutes } from './routes/vault/index.ts';
 import { createMenuRoutes, menuItemsFromUnifiedPlugins } from './routes/menu/index.ts';
-import { createMcpRoutes } from './routes/mcp/index.ts';
+import { createMcpRoutes, createMcpStreamableRoutes } from './routes/mcp/index.ts';
 import { createMetricsLifecycle, metricsRoutes } from './routes/metrics/index.ts';
 import { exportRoutes } from './routes/export/index.ts';
 import { memoryRoutes } from './routes/memory/index.ts';
@@ -136,7 +136,7 @@ export function createApp({ unifiedPlugins, runtimeRef = createUnifiedRuntimeRef
 export function createServerRouteModules(unifiedPlugins: UnifiedRuntime, runtimeRef: UnifiedRuntimeRef<UnifiedRuntime>): RouteModule[] {
   const healthRoutes = createHealthRoutes({ pluginCount: unifiedPlugins.pluginCount, pluginMcpToolCount: unifiedPlugins.mcpTools.length, pluginStatuses: unifiedPlugins.pluginStatuses, isDraining });
   const apiModules = [authRoutes, settingsRoutes, feedRoutes, healthRoutes, dashboardRoutes, searchRoutes, askRoutes, vectorRoutes, vectorConfigApiRoutes, conceptsRoutes, knowledgeRoutes, researchRoutes, verifyRoutes, supersedeRoutes, forumApi, tracesApi, scheduleApi, filesRouter, createPluginsRouter({ registry: () => runtimeRef.current.pluginRegistry(), runtimeRef }), sessionsRoutes, oldStudioCompatRoutes, vaultRoutes, metricsRoutes, exportRoutes, memoryRoutes, canvasRoutes, tenantsRoutes, watcherRoutes, indexerRoutes];
-  return [...apiModules, createMcpRoutes({ runtimeRef }), createMenuRoutes(menuItemsFromUnifiedPlugins(unifiedPlugins.menu))];
+  return [...apiModules, createMcpRoutes({ runtimeRef }), createMcpStreamableRoutes(), createMenuRoutes(menuItemsFromUnifiedPlugins(unifiedPlugins.menu))];
 }
 
 export function mountRouteModules(app: ElysiaApp, modules: RouteModule[]): void {

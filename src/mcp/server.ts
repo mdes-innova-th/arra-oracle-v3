@@ -46,6 +46,7 @@ export type OracleMCPServerOptions = {
   unifiedRuntime?: McpPluginRuntimeOptions['runtime'];
   unifiedRuntimeRef?: McpPluginRuntimeOptions['runtimeRef'];
   watchPlugins?: McpPluginRuntimeOptions['watch'];
+  installSignalHandlers?: boolean;
 };
 
 export class OracleMCPServer {
@@ -90,9 +91,8 @@ export class OracleMCPServer {
     );
     if (!this.oracleApiBase) this.embeddedReady = this.initEmbedded();
     this.setupHandlers();
-    this.setupErrorHandling();
+    this.setupErrorHandling(options.installSignalHandlers !== false);
   }
-
 
   private applyToolGroupConfig(config: ToolGroupConfig): void {
     this.disabledTools = getDisabledTools(config);
@@ -160,8 +160,9 @@ export class OracleMCPServer {
     }
   }
 
-  private setupErrorHandling(): void {
+  private setupErrorHandling(installSignalHandlers: boolean): void {
     this.server.onerror = (error) => console.error('[MCP Error]', error);
+    if (!installSignalHandlers) return;
     process.on('SIGINT', async () => {
       await this.cleanup();
       process.exit(0);
