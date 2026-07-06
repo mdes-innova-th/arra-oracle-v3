@@ -1,59 +1,116 @@
 # Arra Oracle Cloudflare MCP Worker
 
-This Worker exposes a remote MCP endpoint at `/mcp` and proxies safe Oracle
-MCP tools to a running Arra Oracle HTTP backend. It is the #2167 make-it-work
-path for sharing one deployed MCP URL across a team, school, or organization.
+This Worker exposes the canonical remote MCP endpoint at `/mcp` using
+Cloudflare `McpAgent` + Streamable HTTP. It proxies remote-safe Oracle MCP tools
+to a running Arra Oracle HTTP backend; it does **not** host the local database or
+vector index itself.
 
-## What it runs
+## Current contract
 
-The Worker imports the pure `src/tools/mcp-rest-map.ts` table and registers each
-entry marked `remoteable: true`. Examples include:
+- Source of truth for tool exposure: `src/tools/mcp-rest-map.ts`.
+- The Worker registers every entry where `remoteable: true`.
+- Local-only entries such as `____IMPORTANT`, `oracle_recap`,
+  `oracle_mcp_list_tools`, and `oracle_mcp_call` must not be exposed remotely.
+- Backend origin resolution order: `ORACLE_ORIGIN_URL`, `ORACLE_URL`,
+  `ORACLE_HTTP_URL`, then `ORACLE_API`.
+- `workers/mcp/wrangler.jsonc` keeps `ORACLE_URL` as a placeholder fallback;
+  production origin/token values belong in Worker secrets and are set by Nat.
+
+Examples of proxied tools:
 
 - `oracle_search` -> `GET /api/search`
 - `oracle_stats` -> `GET /api/stats`
 - `oracle_learn` -> `POST /api/learn`
 
-The Worker does not host the full local database or vector index. It forwards
-tool calls to `ORACLE_ORIGIN_URL` (falling back to `ORACLE_URL`) and adds auth/tenant headers when configured.
+## Local deploy-readiness check
 
-## Quickstart: deploy
+Start a real backend first:
 
-1. Start or expose an Arra Oracle HTTP backend.
+```bash
+maw arra serve --port 47778
+```
 
-   ```bash
-   maw arra serve --port 47778
-   ```
+Install and typecheck the Worker package:
 
-   For local testing through Cloudflare, expose it with a trusted tunnel and use
-   the public HTTPS URL as the `ORACLE_ORIGIN_URL` Worker secret.
+```bash
+cd workers/mcp
+bun install --frozen-lockfile
+bunx tsc --noEmit
+```
 
-2. Configure the Worker backend origin.
+Run Wrangler locally against the backend without secrets or deploy:
 
-   For production, store the tunnel URL as a Worker secret:
+```bash
+bunx wrangler dev --config wrangler.jsonc \
+  --ip 127.0.0.1 --port 8788 --local \
+  --var ORACLE_URL:http://127.0.0.1:47778 \
+  --show-interactive-dev-session=false
+```
 
-   ```bash
-   bunx wrangler secret put ORACLE_ORIGIN_URL
-   ```
+In another shell, initialize a session:
 
-   `workers/mcp/wrangler.jsonc` keeps `ORACLE_URL` only as a local/dev fallback
-   placeholder.
+```bash
+curl -i -sS http://127.0.0.1:8788/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"smoke","version":"1.0.0"}}}'
+```
 
-3. Install and deploy.
+Copy the `mcp-session-id` response header, then mark initialized and list tools:
 
-   ```bash
-   cd workers/mcp
-   bun install
-   bunx wrangler login
-   bunx wrangler deploy
-   ```
+```bash
+SESSION='<mcp-session-id>'
+curl -sS http://127.0.0.1:8788/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -H "mcp-session-id: $SESSION" \
+  -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
 
-4. If your backend requires an API token, store it as a Worker secret.
+curl -sS http://127.0.0.1:8788/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -H "mcp-session-id: $SESSION" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+```
 
-   ```bash
-   bunx wrangler secret put ARRA_API_TOKEN
-   ```
+Call a backend-proxied tool:
 
-After deploy, your MCP URL is:
+```bash
+curl -sS http://127.0.0.1:8788/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -H "mcp-session-id: $SESSION" \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"oracle_search","arguments":{"query":"calver","limit":1,"retrieval":"compact-summary"}}}'
+```
+
+Expected results:
+
+- `initialize` returns `serverInfo.name = "arra-oracle"`.
+- `tools/list` includes every `remoteable: true` map entry and no local-only
+  entries.
+- `tools/call` for `oracle_search` returns backend search JSON in a text MCP
+  result.
+
+To audit the exact tool-map parity from repo root:
+
+```bash
+bun -e "import {remoteableMcpRestMap,mcpRestMap} from './src/tools/mcp-rest-map.ts'; import {workerMcpToolEntries} from './workers/mcp/src/tools.ts'; const r=remoteableMcpRestMap.map(t=>t.name).sort(); const w=workerMcpToolEntries.map(t=>t.name).sort(); console.log({remoteable:r.length, worker:w.length, missing:r.filter(x=>!w.includes(x)), extra:w.filter(x=>!r.includes(x)), localOnly:mcpRestMap.filter(t=>!t.remoteable).map(t=>t.name).sort()});"
+```
+
+## Production deploy handoff
+
+Do **not** deploy from verification PRs and do not touch secrets. Nat owns these
+steps after the backend origin is approved:
+
+```bash
+cd workers/mcp
+bunx wrangler login
+bunx wrangler secret put ORACLE_ORIGIN_URL
+bunx wrangler secret put ARRA_API_TOKEN   # only if backend requires it
+bunx wrangler deploy --config wrangler.jsonc
+```
+
+After deploy, the MCP URL is:
 
 ```text
 https://<worker-name>.<account>.workers.dev/mcp
@@ -77,34 +134,8 @@ Claude Desktop can connect through `mcp-remote`:
 }
 ```
 
-Save the config, restart Claude Desktop, and complete the browser auth flow if
-OAuth or Cloudflare Access is enabled. If your Claude client supports remote MCP
-URLs directly, use the same `/mcp` URL.
-
-## Test the deployment
-
-Run local Worker tests from the repository root before deploy:
-
-```bash
-bun test tests/workers/mcp-proxy-tools.test.ts tests/workers/mcp-proxy.test.ts
-bunx tsc --noEmit
-```
-
-Smoke test the deployed MCP endpoint with MCP Inspector:
-
-```bash
-npx @modelcontextprotocol/inspector@latest
-```
-
-In the Inspector UI, connect to:
-
-```text
-https://<worker-name>.<account>.workers.dev/mcp
-```
-
-Then run **List Tools** and call `oracle_stats`. If the backend is protected,
-confirm `ARRA_API_TOKEN` is set and the upstream server accepts bearer tokens.
-For stdio-only clients, use the `mcp-remote` bridge contract documented in
+If your Claude client supports remote MCP URLs directly, use the same `/mcp`
+URL. For stdio-only clients, use the bridge contract in
 `docs/architecture/mcp-remote-transport.md`.
 
 ## Config reference
@@ -120,26 +151,16 @@ For stdio-only clients, use the `mcp-remote` bridge contract documented in
 | `ORACLE_TENANT_ID` | var/secret | No | Default tenant for unauthenticated single-tenant deploys. |
 | `MCP_OBJECT` | Durable Object binding | Yes | Session state binding required by `McpAgent`. |
 
-`ORACLE_ORIGIN_URL` is not a database URL. It should point to the backend
-HTTP origin, for example `https://oracle.example.com`, not directly to `/mcp`
-or `/api/*`. See `docs/architecture/cloudflared-origin-contract.md` for the
-canonical #2227 origin contract.
+`ORACLE_ORIGIN_URL` should point to the backend HTTP origin, for example
+`https://oracle.example.com`, not directly to `/mcp` or `/api/*`. See
+`docs/architecture/cloudflared-origin-contract.md` for the #2227 origin contract.
 
-## OAuth and tenant claims
+## Tenant claims
 
-For team or school deployments, wrap the Worker with Cloudflare
-`workers-oauth-provider` or Cloudflare Access so authenticated users receive a
-tenant claim. The `McpAgent` receives auth props and the proxy resolves tenants
-from these claim keys:
-
-- `tenantId`
-- `tenant_id`
-- `tenant`
-- `orgId`
-- `org_id`
-- `organizationId`
-- `organization_id`
-- the same keys under `claims`
+For team or school deployments, wrap the Worker with Cloudflare Access or an
+OAuth provider so authenticated users receive a tenant claim. The proxy resolves
+tenants from these keys, including under `claims`: `tenantId`, `tenant_id`,
+`tenant`, `orgId`, `org_id`, `organizationId`, `organization_id`.
 
 When a tenant is resolved, the Worker forwards all backend-compatible headers:
 
@@ -150,17 +171,16 @@ X-Oracle-Tenant-ID: <tenant>
 ```
 
 Use `ORACLE_TENANT_ID` only for single-tenant or smoke-test deploys. In shared
-production deploys, prefer OAuth/Access claims so users cannot select another
-tenant by changing tool arguments.
+production deploys, prefer auth claims so users cannot select another tenant by
+changing tool arguments.
 
 ## Troubleshooting
 
 - **No tools in Claude:** verify the URL ends with `/mcp`, restart Claude, then
   try MCP Inspector to separate client config from Worker issues.
-- **Backend calls fail:** check `ORACLE_ORIGIN_URL`, fallback `ORACLE_URL`, token secrets, and that the backend
-  exposes `/api/search`, `/api/stats`, and `/api/learn`.
-- **Tenant isolation looks wrong:** verify the OAuth token includes one of the
-  supported tenant claim keys, or set `ORACLE_TENANT_ID` for a single-tenant
-  smoke test.
+- **Backend calls fail:** check the origin URL, token secrets, and that the
+  backend exposes `/api/search`, `/api/stats`, and `/api/learn`.
+- **Tenant isolation looks wrong:** verify the auth token includes a supported
+  tenant claim, or set `ORACLE_TENANT_ID` for a single-tenant smoke test.
 - **Direct browser visit fails:** `/mcp` expects MCP protocol messages; use
-  Claude, `mcp-remote`, or MCP Inspector instead.
+  Claude, `mcp-remote`, MCP Inspector, or the curl smoke flow above.
