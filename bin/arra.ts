@@ -9,11 +9,13 @@ Usage:
   arra-oracle [serve] [options]
   arra-oracle mcp [--read-only]
   arra-oracle mine <dir> [--watch]
+  arra-oracle okf export [--out <dir>] [--source <vault-root>]
 
 Commands:
   serve        Run the HTTP server (default)
   mcp          Run the stdio MCP server
   mine         Ingest a folder into Oracle memory
+  okf          Export ψ vault as an OKF v0.1 bundle
 
 Serve options:
   --port <n>    Port to listen on (default: 47778, env: ORACLE_PORT)
@@ -26,6 +28,11 @@ Once running, open the UI with: bunx oracle-studio`);
 if (command === "mine") {
   const { mineCommand } = await import("../src/cli/mine.ts");
   process.exit(await mineCommand(args.slice(1)));
+}
+
+if (command === "okf") {
+  const { okfCommand } = await import("../src/cli/okf/index.ts");
+  process.exit(await okfCommand(args.slice(1)));
 }
 
 if (args.includes("--help") || args.includes("-h")) {
