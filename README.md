@@ -295,14 +295,22 @@ to **[Discussions](https://github.com/Soul-Brews-Studio/arra-oracle-v3/discussio
 not Issues. See [docs/CONTRIBUTING-AWAKENING.md](./docs/CONTRIBUTING-AWAKENING.md)
 for categories and signature convention.
 
-## References
+## 📚 Developer Documentation
 
-- [TIMELINE.md](./TIMELINE.md) - Full evolution history
-- [docs/API.md](./docs/API.md) - API documentation
-- [docs/architecture.md](./docs/architecture.md) - Architecture details
-- [docs/CONTRIBUTING-AWAKENING.md](./docs/CONTRIBUTING-AWAKENING.md) - Where to post awakening announcements
-- [Drizzle ORM](https://orm.drizzle.team/)
-- [MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk)
+| Document | Purpose |
+|----------|---------|
+| [SETUP.md](./SETUP.md) | Quick start + local dev setup |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Tech stack, folder structure, route map, schema |
+| [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) | Confirmed bugs and structural issues |
+| [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | Common runtime problems and fixes |
+| [RISKS.md](./RISKS.md) | Risk register with safe improvement order |
+| [STUDY_LOG.md](./STUDY_LOG.md) | Study/discovery chronicle |
+| [TIMELINE.md](./TIMELINE.md) | Full evolution history |
+| [docs/API.md](./docs/API.md) | API documentation |
+| [docs/architecture.md](./docs/architecture.md) | Architecture details (legacy, may be outdated) |
+| [docs/ONBOARDING.md](./docs/ONBOARDING.md) | Progressive onboarding guide |
+| [docs/LOCAL-DEV.md](./docs/LOCAL-DEV.md) | Local development guide |
+| [docs/CONTRIBUTING-AWAKENING.md](./docs/CONTRIBUTING-AWAKENING.md) | Where to post awakening announcements |
 
 ## Acknowledgments
 
