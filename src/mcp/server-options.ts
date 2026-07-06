@@ -3,6 +3,7 @@ import type { Database } from 'bun:sqlite';
 import type * as schema from '../db/schema.ts';
 import type { ToolGroupConfig, watchToolGroupConfig } from '../config/tool-groups.ts';
 import type { VectorStoreAdapter } from '../vector/types.ts';
+import type { EmbedderRuntimeStatus } from '../vector/embedder-config.ts';
 import type { McpPluginRuntimeOptions } from './plugin-runtime.ts';
 
 export type EmbeddedDeps = {
@@ -12,6 +13,7 @@ export type EmbeddedDeps = {
     sqlite: Database;
     db: BunSQLiteDatabase<typeof schema>;
   };
+  probeEmbedder?: (preset: any) => Promise<EmbedderRuntimeStatus>;
 };
 
 export type OracleMCPServerOptions = {

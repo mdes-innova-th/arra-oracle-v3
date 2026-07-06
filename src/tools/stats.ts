@@ -84,6 +84,8 @@ export async function handleStats(ctx: ToolContext, _input: OracleStatsInput): P
           ? new Date(lastIndexed.lastIndexed).toISOString()
           : null,
         vector_status: ctx.vectorStatus,
+        ...(ctx.vectorReason ? { vector_reason: ctx.vectorReason } : {}),
+        ...(ctx.embedderProvider ? { embedder_provider: ctx.embedderProvider } : {}),
         fts_status: ftsCount.count > 0 ? 'healthy' : 'empty',
         version: ctx.version,
         ...(tenantId ? { tenant: { id: tenantId, scope: 'tenant_id' } } : {}),

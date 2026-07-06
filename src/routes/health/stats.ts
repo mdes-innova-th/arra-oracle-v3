@@ -2,6 +2,7 @@ import { Elysia, t } from 'elysia';
 import { DB_PATH } from '../../config.ts';
 import { getSetting, isDbLockError, sqlite } from '../../db/index.ts';
 import { currentTenantId } from '../../middleware/tenant.ts';
+import { getEmbedderRuntimeStatus } from '../../vector/embedder-config.ts';
 import { handleStats } from '../../server/handlers.ts';
 import { handleVectorStats } from '../../server/vector-handlers.ts';
 import { tenantStats } from './tenant-stats.ts';
@@ -23,6 +24,8 @@ function statsResponseSchema() {
     vector: t.Optional(t.Object({ enabled: t.Boolean(), count: t.Number(), collection: t.String() })),
     vector_status: t.Optional(t.Union([t.Literal('ok'), t.Literal('degraded'), t.Literal('down')])),
     vector_error: t.Optional(t.String()),
+    vector_reason: t.Optional(t.String()),
+    embedder_provider: t.Optional(t.String()),
     fts: t.Optional(t.Object({ status: t.String(), indexed: t.Number(), missing: t.Number(), error: t.Optional(t.String()) })),
     fts_status: t.Optional(t.String()),
     fts_indexed: t.Optional(t.Number()),
@@ -79,11 +82,15 @@ export function createStatsEndpoint(options: StatsEndpointOptions = {}) {
       const stats = tenantStats() ?? handleStats(DB_PATH);
       const vaultRepo = getSetting('vault_repo');
       const fts = readFtsHealth(totalDocs(stats));
+      const embedder = getEmbedderRuntimeStatus();
+      const embedderFields = embedder.reason ? { vector_reason: embedder.reason, embedder_provider: embedder.provider } : {};
       try {
         const vectorStats = await readVectorStats();
-        return { ...stats, ...vectorStats, vector_status: vectorStatus(vectorStats), fts, fts_status: fts.status, fts_indexed: fts.indexed, vault_repo: vaultRepo };
+        const status = embedder.status === 'degraded' ? 'degraded' : vectorStatus(vectorStats);
+        return { ...stats, ...vectorStats, vector_status: status, ...embedderFields, fts, fts_status: fts.status, fts_indexed: fts.indexed, vault_repo: vaultRepo };
       } catch (error) {
-        return { ...stats, ...fallbackVector, vector_status: 'down', vector_error: errorMessage(error), fts, fts_status: fts.status, fts_indexed: fts.indexed, vault_repo: vaultRepo };
+        const status = embedder.status === 'degraded' ? 'degraded' : 'down';
+        return { ...stats, ...fallbackVector, vector_status: status, vector_error: errorMessage(error), ...embedderFields, fts, fts_status: fts.status, fts_indexed: fts.indexed, vault_repo: vaultRepo };
       }
     } catch (err) {
       if (isDbLockError(err)) return { total_docs: 0, by_type: {}, indexing: true, error: 'db temporarily unavailable' };

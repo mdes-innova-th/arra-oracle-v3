@@ -42,6 +42,11 @@ export async function handleSearch(ctx: ToolContext, input: OracleSearchInput): 
   const vectorSectionEnabled = requestedMode !== 'fts' && isVectorSectionEnabled();
   let vectorAvailable = requestedMode !== 'fts' ? vectorSectionEnabled : undefined;
   if (requestedMode !== 'fts' && !vectorSectionEnabled) effectiveMode = 'fts';
+  if (requestedMode !== 'fts' && ctx.vectorStatus === 'degraded') {
+    effectiveMode = 'fts';
+    vectorAvailable = false;
+    warning = `Vector search degraded: ${ctx.vectorReason ?? 'embedder unavailable'}. Using FTS5 only.`;
+  }
 
   let ftsRawResults: ReturnType<typeof searchFts> = [];
   if (effectiveMode !== 'vector' && safeQuery) {

@@ -4,6 +4,7 @@ import { MCP_SERVER_NAME } from '../../const.ts';
 import { sqlite } from '../../db/index.ts';
 import { scanPlugins } from '../plugins/model.ts';
 import { readVectorBackendHealth } from '../../vector/health.ts';
+import { getEmbedderRuntimeStatus } from '../../vector/embedder-config.ts';
 import { getVectorRuntimeStatus, type VectorRuntimeStatus } from '../../vector/runtime-status.ts';
 import { readVectorServerHealth, type VectorServerHealth } from './vector-server.ts';
 import { memoryConfidenceRerankConfig } from '../memory/rerank-config.ts';
@@ -123,8 +124,9 @@ export function createHealthEndpoint(options: HealthEndpointOptions = {}) {
     const vectorRuntime = options.vectorRuntime?.() ?? (options.vectorHealth
       ? { vectorMode: 'embedded' as const }
       : getVectorRuntimeStatus());
+    const embedderStatus = getEmbedderRuntimeStatus();
     const serviceUptime = Math.round(uptimeSeconds * 1000) / 1000;
-    const vectorIsAvailable = vectorAvailable(vectorRuntime, vector, vectorServer);
+    const vectorIsAvailable = embedderStatus.status === 'degraded' ? false : vectorAvailable(vectorRuntime, vector, vectorServer);
     const entityCoverage = options.entityCoverage?.() ?? readEntityCoverageStats();
     const subsystems = await buildHealthSubsystems({
       dbStatus, vector, vectorServer, vectorRuntime, pluginStatus, pluginCount,
@@ -145,7 +147,9 @@ export function createHealthEndpoint(options: HealthEndpointOptions = {}) {
       db: dbStatus.status,
       oracle: dbStatus.status === 'connected' ? 'connected' : 'degraded',
       dbStatus: dbStatus.status,
-      vectorStatus: vector.status,
+      vectorStatus: embedderStatus.status === 'degraded' ? 'degraded' : vector.status,
+      embedderStatus,
+      ...(embedderStatus.reason ? { vectorReason: embedderStatus.reason } : {}),
       ...vectorRuntime,
       vectorAvailable: vectorIsAvailable,
       pluginStatus,
