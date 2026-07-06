@@ -97,6 +97,7 @@
     "test:huginn": "bun test src/huginn/__tests__/capture.test.ts src/huginn/__tests__/sweep.test.ts",
     "huginn:sweep": "bun scripts/huginn-sweep.ts",
     "bench": "bun run benchmarks/run-all.ts",
+    "bench:bge-m3-drift": "bun scripts/bge-m3-drift-benchmark.ts",
     "export": "bun src/cli/commands/export.ts",
     "cloudflare:mcp:dev": "wrangler dev --config workers/mcp/wrangler.jsonc",
     "cloudflare:mcp:deploy": "wrangler deploy --config workers/mcp/wrangler.jsonc",
