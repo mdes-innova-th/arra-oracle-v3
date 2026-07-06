@@ -2,12 +2,23 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { Elysia } from 'elysia';
 import { createApp } from '../../../src/server.ts';
 import { createMcpStreamableRoutes } from '../../../src/routes/mcp/index.ts';
+import type { ToolGroupConfig } from '../../../src/config/tool-groups.ts';
 import type { UnifiedRuntime } from '../../../src/plugins/unified-loader.ts';
 
 const originalEnv = {
   ORACLE_HTTP_URL: process.env.ORACLE_HTTP_URL,
   ORACLE_MCP_HTTP_TOKEN: process.env.ORACLE_MCP_HTTP_TOKEN,
   ARRA_API_TOKEN: process.env.ARRA_API_TOKEN,
+};
+
+const allToolGroups: ToolGroupConfig = {
+  search: true,
+  knowledge: true,
+  session: true,
+  forum: true,
+  oracle: true,
+  trace: true,
+  standalone: true,
 };
 
 beforeEach(() => {
@@ -45,15 +56,50 @@ describe('Streamable HTTP MCP bearer auth', () => {
     const sessionId = await initialize(app, 'mcp-secret');
     await notifyInitialized(app, sessionId, 'mcp-secret');
 
-    const res = await postMcp(app, toolsListRequest(), 'mcp-secret', sessionId);
-    const body = await res.json() as any;
-    const names = body.result.tools.map((tool: { name: string }) => tool.name);
+    const names = await listToolNames(app, sessionId, 'mcp-secret');
 
-    expect(res.status).toBe(200);
     expect(names).toContain('oracle_search');
     expect(names).not.toContain('____IMPORTANT');
     expect(names).not.toContain('oracle_recap');
     expect(names).not.toContain('oracle_mcp_call');
+  });
+
+  test('applies read-only filtering to remote HTTP sessions', async () => {
+    const app = mcpApp({ ORACLE_MCP_HTTP_TOKEN: 'mcp-secret', ORACLE_READ_ONLY: 'true' });
+    const sessionId = await initialize(app, 'mcp-secret');
+    await notifyInitialized(app, sessionId, 'mcp-secret');
+
+    const names = await listToolNames(app, sessionId, 'mcp-secret');
+
+    expect(names).toContain('oracle_search');
+    expect(names).not.toContain('oracle_learn');
+    expect(names).not.toContain('oracle_verify');
+  });
+
+  test('layers existing tool group filters under the remote allowlist', async () => {
+    const app = mcpApp({ ORACLE_MCP_HTTP_TOKEN: 'mcp-secret' }, { toolGroups: { ...allToolGroups, search: false } });
+    const sessionId = await initialize(app, 'mcp-secret');
+    await notifyInitialized(app, sessionId, 'mcp-secret');
+
+    const names = await listToolNames(app, sessionId, 'mcp-secret');
+
+    expect(names).not.toContain('oracle_search');
+    expect(names).toContain('oracle_stats');
+  });
+
+  test('remote allowlist blocks local-only tool calls even when explicitly enabled', async () => {
+    const toolGroups = { ...allToolGroups, enabled_tools: ['oracle_mcp_call'] };
+    const app = mcpApp({ ORACLE_MCP_HTTP_TOKEN: 'mcp-secret' }, { toolGroups });
+    const sessionId = await initialize(app, 'mcp-secret');
+    await notifyInitialized(app, sessionId, 'mcp-secret');
+
+    const names = await listToolNames(app, sessionId, 'mcp-secret');
+    const res = await postMcp(app, toolCallRequest('oracle_mcp_call'), 'mcp-secret', sessionId);
+    const body = await res.json() as any;
+
+    expect(names).not.toContain('oracle_mcp_call');
+    expect(body.result.isError).toBe(true);
+    expect(body.result.content[0].text).toContain('Unknown tool: oracle_mcp_call');
   });
 
   test('falls back to ARRA_API_TOKEN and deletes sessions', async () => {
@@ -71,8 +117,8 @@ describe('Streamable HTTP MCP bearer auth', () => {
   });
 });
 
-function mcpApp(env: Record<string, string>) {
-  return new Elysia().use(createMcpStreamableRoutes({ env, enableJsonResponse: true }));
+function mcpApp(env: Record<string, string>, options: { toolGroups?: ToolGroupConfig; readOnly?: boolean } = {}) {
+  return new Elysia().use(createMcpStreamableRoutes({ env, enableJsonResponse: true, ...options }));
 }
 
 async function initialize(app: Elysia, token: string): Promise<string> {
@@ -86,6 +132,13 @@ async function initialize(app: Elysia, token: string): Promise<string> {
 async function notifyInitialized(app: Elysia, sessionId: string, token: string) {
   const res = await postMcp(app, { jsonrpc: '2.0', method: 'notifications/initialized' }, token, sessionId);
   expect(res.status).toBe(202);
+}
+
+async function listToolNames(app: Elysia, sessionId: string, token: string): Promise<string[]> {
+  const res = await postMcp(app, toolsListRequest(), token, sessionId);
+  const body = await res.json() as any;
+  expect(res.status).toBe(200);
+  return body.result.tools.map((tool: { name: string }) => tool.name);
 }
 
 function postMcp(app: Elysia, body: unknown, token?: string, sessionId?: string) {
@@ -116,6 +169,10 @@ function initializeRequest() {
 
 function toolsListRequest() {
   return { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} };
+}
+
+function toolCallRequest(name: string) {
+  return { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name, arguments: {} } };
 }
 
 function runtime(): UnifiedRuntime {

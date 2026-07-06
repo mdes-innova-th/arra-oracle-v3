@@ -1,21 +1,14 @@
-import type { ToolGroupConfig } from '../config/tool-groups.ts';
+import { loadToolGroupConfig, type ToolGroupConfig } from '../config/tool-groups.ts';
 import type { UnifiedRuntime } from '../plugins/unified-loader.ts';
-import { mcpTools } from '../tools/mcp-manifest.ts';
 import { remoteableMcpRestMap } from '../tools/mcp-rest-map.ts';
 
 const REMOTEABLE_TOOL_NAMES = new Set(remoteableMcpRestMap.map((entry) => entry.name));
-const DISABLED_HTTP_TOOL_NAMES = mcpTools.map((tool) => tool.name).filter((name) => !REMOTEABLE_TOOL_NAMES.has(name));
+export const remoteableMcpToolNames = [...REMOTEABLE_TOOL_NAMES];
 
-export function remoteHttpToolGroups(): ToolGroupConfig {
+export function remoteHttpToolGroups(base: ToolGroupConfig = loadToolGroupConfig()): ToolGroupConfig {
   return {
-    search: true,
-    knowledge: true,
-    session: true,
-    forum: true,
-    oracle: true,
-    trace: true,
-    standalone: true,
-    disabled_tools: DISABLED_HTTP_TOOL_NAMES,
+    ...base,
+    enabled_tools: base.enabled_tools?.filter((name) => REMOTEABLE_TOOL_NAMES.has(name)),
   };
 }
 

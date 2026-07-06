@@ -1,5 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { type BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
 import type { Database } from 'bun:sqlite';
@@ -13,12 +14,15 @@ import type { ToolContext, ToolResponse } from '../tools/types.ts';
 import type { VectorStoreAdapter } from '../vector/types.ts';
 import { defaultMcpToolOrder, mcpToolByName, mcpTools, toMcpToolDefinition, type RuntimeMcpToolManifest } from '../tools/mcp-manifest.ts';
 import type { UnifiedRuntime } from '../plugins/unified-loader.ts';
+import type { EmbeddedDeps, OracleMCPServerOptions } from './server-options.ts';
 import { resolveToolName } from './aliases.ts';
 import { proxyToolCall, resolveOracleApiBase } from './http-proxy.ts';
 import { pluginMcpToolsFrom } from './plugin-tools.ts';
 import { runWithTenant } from '../middleware/tenant.ts';
 import { stripMcpTenantArgs, tenantIdFromMcpArgs } from './tenant.ts';
-import { createMcpPluginRuntime, type McpPluginRuntime, type McpPluginRuntimeOptions } from './plugin-runtime.ts';
+import { createMcpPluginRuntime, type McpPluginRuntime } from './plugin-runtime.ts';
+
+export type { OracleMCPServerOptions } from './server-options.ts';
 
 function errorResponse(text: string): ToolResponse {
   return { content: [{ type: 'text', text }], isError: true };
@@ -28,26 +32,6 @@ function loadPackageVersion(): string {
   const pkgPath = path.join(import.meta.dir, '..', '..', 'package.json');
   return JSON.parse(fs.readFileSync(pkgPath, 'utf-8')).version;
 }
-
-type EmbeddedDeps = {
-  createVectorStoreForModel: (preset: any) => VectorStoreAdapter;
-  getEmbeddingModels: () => Record<string, any>;
-  createDatabase: (dbPath?: string) => {
-    sqlite: Database;
-    db: BunSQLiteDatabase<typeof schema>;
-  };
-};
-
-export type OracleMCPServerOptions = {
-  readOnly?: boolean;
-  toolGroups?: ToolGroupConfig;
-  embeddedDeps?: EmbeddedDeps | Promise<EmbeddedDeps>;
-  watchToolGroups?: typeof watchToolGroupConfig;
-  unifiedRuntime?: McpPluginRuntimeOptions['runtime'];
-  unifiedRuntimeRef?: McpPluginRuntimeOptions['runtimeRef'];
-  watchPlugins?: McpPluginRuntimeOptions['watch'];
-  installSignalHandlers?: boolean;
-};
 
 export class OracleMCPServer {
   private server: Server;
@@ -68,11 +52,13 @@ export class OracleMCPServer {
   private readonly unifiedRuntime: McpPluginRuntime;
   private readonly embeddedDeps?: EmbeddedDeps | Promise<EmbeddedDeps>;
   private readonly watchToolGroups: typeof watchToolGroupConfig;
+  private readonly toolAllowlist: ReadonlySet<string> | null;
 
   constructor(options: OracleMCPServerOptions = {}) {
     this.readOnly = options.readOnly ?? false;
     this.embeddedDeps = options.embeddedDeps;
     this.watchToolGroups = options.watchToolGroups ?? watchToolGroupConfig;
+    this.toolAllowlist = options.toolAllowlist ? new Set(options.toolAllowlist) : null;
     if (this.readOnly) console.error('[Oracle] Running in READ-ONLY mode');
     this.oracleApiBase = resolveOracleApiBase();
     console.error(this.oracleApiBase
@@ -180,6 +166,10 @@ export class OracleMCPServer {
     return this.disabledTools.has(tool.name) || this.explicitDisabledTools.has(tool.name);
   }
 
+  private isAllowed(tool: RuntimeMcpToolManifest): boolean {
+    return !this.toolAllowlist || this.toolAllowlist.has(tool.name);
+  }
+
   private async availableTools() {
     const registry = await this.toolRegistry();
     const configured = defaultMcpToolOrder(this.enabledToolNames);
@@ -189,6 +179,7 @@ export class OracleMCPServer {
     return [...configured, ...dynamic]
       .map((name) => registry.get(name))
       .filter((tool): tool is RuntimeMcpToolManifest => !!tool)
+      .filter((tool) => this.isAllowed(tool))
       .filter((tool) => !this.isDisabled(tool))
       .filter((tool) => !this.readOnly || tool.readOnly !== false);
   }
@@ -205,6 +196,7 @@ export class OracleMCPServer {
       const toolName = resolveToolName(request.params.name);
       const tool = (await this.toolRegistry()).get(toolName);
       if (!tool) return errorResponse(`Error: Unknown tool: ${toolName}`);
+      if (!this.isAllowed(tool)) return errorResponse(`Error: Unknown tool: ${toolName}`);
       if (this.isDisabled(tool)) {
         return errorResponse(`Error: Tool "${toolName}" is disabled by tool group config. Check ${ORACLE_DATA_DIR}/config.json or arra.config.json.`);
       }
@@ -235,9 +227,13 @@ export class OracleMCPServer {
     await this.vectorStore?.connect();
   }
 
+  async connect(transport: Transport): Promise<void> {
+    await this.server.connect(transport);
+  }
+
   async run(): Promise<void> {
     const transport = new StdioServerTransport();
-    await this.server.connect(transport);
+    await this.connect(transport);
     console.error('Arra Oracle MCP Server running on stdio (FTS5 mode)');
   }
 
