@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { createHealthRoutes } from '../../../src/routes/health/index.ts';
+import { clearEmbedderRuntimeStatusForTests, setEmbedderRuntimeStatus } from '../../../src/vector/embedder-config.ts';
 
 test('unset ORACLE_EMBEDDER auto-selects ollama when probe is available', async () => {
   const previous = saveEmbedderEnv();
@@ -51,6 +52,35 @@ test('explicit none with existing vector docs reports embedder drift warning', a
     });
   } finally {
     restoreEmbedderEnv(previous);
+  }
+});
+
+test('runtime embedder degradation is surfaced in health output', async () => {
+  setEmbedderRuntimeStatus({
+    status: 'degraded', provider: 'ollama', source: 'auto-default', explicit: false,
+    reason: 'ECONNREFUSED 127.0.0.1:11434', checkedAt: 'now',
+  });
+  try {
+    const app = createHealthRoutes({
+      pluginCount: 1,
+      uptimeSeconds: () => 5,
+      vectorRuntime: embeddedRuntime,
+      embeddingProviderSelection: { provider: 'ollama', source: 'auto-default', explicit: false },
+      vectorHealth: async () => vectorHealth(3),
+      vectorServerHealth: async () => ({ configured: false, status: 'unconfigured' }),
+    });
+
+    const body = await json(app);
+    expect(body.vectorStatus).toBe('degraded');
+    expect(body.vectorAvailable).toBe(false);
+    expect(body.vectorReason).toBe('ECONNREFUSED 127.0.0.1:11434');
+    expect(body.embedderStatus).toMatchObject({ status: 'degraded', provider: 'ollama' });
+    expect(body.subsystems.embedder).toMatchObject({
+      status: 'degraded',
+      data: { reason: 'ECONNREFUSED 127.0.0.1:11434' },
+    });
+  } finally {
+    clearEmbedderRuntimeStatusForTests();
   }
 });
 

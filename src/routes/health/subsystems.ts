@@ -1,6 +1,6 @@
 import { DB_PATH } from '../../config.ts';
 import { sqlite } from '../../db/index.ts';
-import { resolveEmbeddingProviderSelection, type EmbeddingProviderSelection } from '../../vector/embedder-config.ts';
+import { getEmbedderRuntimeStatus, resolveEmbeddingProviderSelection, type EmbeddingProviderSelection } from '../../vector/embedder-config.ts';
 import { getDetectedEmbeddingProviders, type DetectedEmbeddingProvider } from '../../vector/provider-detection.ts';
 import { readEntityCoverageStats, type EntityCoverageStats } from '../../search/entity-coverage.ts';
 import type { VectorBackendHealth } from '../../vector/health.ts';
@@ -133,6 +133,14 @@ async function embedderSubsystem(read?: EmbeddingProviderProbe, vector?: VectorB
   const probe = read ?? (() => getDetectedEmbeddingProviders(false, { timeoutMs: 750 }));
   const selection = selectedByOptions ?? resolveEmbeddingProviderSelection();
   const selected = selection.provider;
+  const runtime = getEmbedderRuntimeStatus();
+  if (runtime.status === 'degraded' && runtime.provider === selected) {
+    return degraded(
+      'embedder reachable',
+      `degraded: FTS-only (${runtime.reason ?? 'embedder unavailable'})`,
+      { provider: runtime.provider, source: runtime.source, reason: runtime.reason, checkedAt: runtime.checkedAt },
+    );
+  }
   if (selected === 'none') {
     const vectorDocs = vectorDocCount(vector);
     if (vectorDocs > 0) {
